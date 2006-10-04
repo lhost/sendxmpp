@@ -1,120 +1,186 @@
 #!/usr/bin/perl -w
+
+eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 #-*-mode:perl-*-
-#Time-stamp: <2004-11-21 09:59:27 (djcb)>
+#Time-stamp: <2005-05-07 19:24:09 (djcb)>
 
 # script to send message using xmpp (aka jabber), 
 #   somewhat resembling mail(1)
 
-# author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
-# released under the terms of the GNU General Public License
+# Author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
+# Copyright (c) 2004,2005 Dirk-Jan C. Binnema
+
+# Released under the terms of the GNU General Public License v2
 
 use Net::XMPP;
 use Getopt::Long;
 use strict;
 
-# subroutines
-sub xmpp_login($$$$$$);
+use open ':utf8';                                                                                                                                                                    
+use open ':std';                                                                                                                                                                     
+
+# subroutines decls
+sub xmpp_login($$$$$$$);
+sub xmpp_send ($$$);
 sub xmpp_send_message($$$$);
-sub xmpp_send_group_message($$$$);
+sub xmpp_send_chatroom_message($$$$$);
 sub xmpp_logout($);
 sub xmpp_check_result;
 sub parse_cmdline();
 sub error_exit;
+sub debug_print;
 sub read_config_file($);
 sub push_hash($$);
-sub main ();
+sub terminate();
+sub main();
 
 my # MakeMaker
-$VERSION = '0.0.4';
-my $RESOURCE= 'sendxmpp';
-my $DEBUG = 0;
-		     
+$VERSION     = '0.0.8';
+my $RESOURCE = 'sendxmpp';
+my $VERBOSE  = 0;
+my $DEBUG    = 0;
+	     
 # start!
 &main;
-		     
+
+#
+# main: main routine
+#
 sub main () {
 
     my $cmdline = parse_cmdline();
     
-    $DEBUG = 1 if ($$cmdline{'debug'});
+    $| = 1; # no output buffering
 
+    $DEBUG   = 1 if ($$cmdline{'debug'});
+    $VERBOSE = 1 if ($$cmdline{'verbose'});
+    
     my $config = read_config_file ($$cmdline{'file'})
 	unless ($$cmdline{'jserver'} && $$cmdline{'username'} && $$cmdline{'password'});	
     
     # login to xmpp
     my $cnx =  xmpp_login ($$cmdline{'jserver'}  || $$config{'jserver'},
+			   $$cmdline{'port'}     || $$config{'port'},
 			   $$cmdline{'username'} || $$config{'username'},
 			   $$cmdline{'password'} || $$config{'password'},
      			   $$cmdline{'resource'},
 			   $$cmdline{'tls'},
 			   $$cmdline{'debug'})
-	or error_exit("cannot login: $!");
+      or error_exit("cannot login: $!");
     
+   
+    # read message from STDIN or or from -m/--message parameter
+    if (!$$cmdline{interactive}) {
+	
+	# the non-interactive case
+	my $txt;
+	my $message = $$cmdline{'message'}; 
+	if ($message) {
+	    open (MSG, "<$message")
+	      or error_exit ("cannot open message file '$message': $!");
+	    while (<MSG>) {$txt.=$_};
+	    close(MSG);
+	}  else  {
+	    $txt.=$_ while (<STDIN>);
+	}
+	
+	xmpp_send ($cnx,$cmdline,$txt);
     
-    unless ($$cmdline{'chatroom'}) {
-	xmpp_send_message ($cnx,
-			   $$cmdline{'recipient'},
-			   $$cmdline{'subject'},
-			   $$cmdline{'message'});
     } else {
-	xmpp_send_group_message ($cnx,
-				 $$cmdline{'resource'},
-				 $$cmdline{'recipient'},
-				 $$cmdline{'message'});
+	# the interactive case, read stdin line by line
+
+	# deal with TERM
+	$main::CNX = $cnx;  
+	$SIG{INT}=\&terminate;
+
+	# line by line...
+	while (<STDIN>) {
+	    chomp;
+	    xmpp_send ($cnx,$cmdline,$_);
+	}
     }
 
     xmpp_logout($cnx);
-    exit(0);
+    exit 0;
 }
 
 
 
+#
+# read_config_file: read the configuration file
+# input: filename
+# output: hash with 'user', 'jserver' and 'password' keys
+#
 sub read_config_file ($) {
    
+    # check permissions
     my $cfg_file = shift;
     error_exit ("cannot read $cfg_file: $!") 
-	unless (-r $cfg_file);
-    
+	unless (-r $cfg_file);    
     my $owner  = (stat($cfg_file))[4];
     error_exit ("you must own $cfg_file")
-	unless ($owner == $>); 
-    
+      unless ($owner == $>); 
     my $mode = (stat($cfg_file))[2] & 07777;
     error_exit ("$cfg_file must have mode 0600")
-	unless ($mode == 0600);
+      unless ($mode == 0600);
     
     open (CFG,"<$cfg_file")
-	or error_exit("cannot open $cfg_file for reading: $!");
+      or error_exit("cannot open $cfg_file for reading: $!");
 
     my %config;
     my $line = 0;
     while (<CFG>) {
+	
 	++$line;
+	
 	next if (/^\s*$/);     # ignore empty lines
 	next if (/^\s*\#.*/);  # ignore comment lines
-	if (/([-\.\w]+)@([-\.\w]+)\s+([-\w\.]+)/) {
-	    %config = (username=>$1,
-		       jserver=>$2, 
-		       password=>$3);
-	} else {	    close(CFG);
+	
+	s/\#.*$//; # ignore comments in lines
+	
+	if (/([-\.\w]+)@([-\.\w:]+)\s+(\S+)\s*$/) {
+	    %config = ('username' => $1,
+		       'jserver'  => $2, 
+		       'port'     => 0,
+		       'password' => $3);
+
+	    if ($config{'jserver'} =~ /(.*):(\d+)/) {
+		$config{'jserver'} = $1;
+		$config{'port'}    = $2;
+	    }
+	} else {
+	    close CFG;
 	    error_exit ("syntax error in line $line of $cfg_file");
 	}
     }
-    close(CFG);
+    
+    close CFG;
     
     error_exit ("no correct config found in $cfg_file") 
-	unless (scalar(%config));       
+      unless (scalar(%config));       
 
+    if ($DEBUG || $VERBOSE) {
+	while (my ($key,$val) = each %config) {
+	    debug_print ("config: '$key' => '$val'");
+	}
+    }	    
+    
     return \%config;	           
 }
 
 
+
+#
+# parse_cmdline: parse commandline options
+# output: hash with commandline options
+#
 sub parse_cmdline () {
     
-   usage() unless (scalar(@ARGV));
-	    
-    my ($subject,$file,$resource,$jserver,$username,$password,
-	$message,$chatroom,$debug,$tls,$help);
+    usage() unless (scalar(@ARGV));
+    
+    my ($subject,$file,$resource,$jserver,$port,$username,$password,
+	$message,$chatroom,$debug,$tls,$interactive,$help,$verbose);
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
@@ -124,96 +190,156 @@ sub parse_cmdline () {
 			  'message|m=s'    => \$message,
 			  'chatroom|c'     => \$chatroom,
 			  'tls|t'          => \$tls,
+			  'interactive|i'  => \$interactive,
 			  'help|usage|h'   => \$help,
-			  'debug|d'        => \$debug);
-    usage () if ($help);   
-   
+			  'debug|d'        => \$debug,
+			  'verbose|v'      => \$verbose);
+    usage () 
+      if ($help);   
+    
     my $rcpt = $ARGV[0]
-	or error_exit("no recipient specified");
-
-    # read message from STDIN or or from -m/--message parameter
-    my $txt;
-    if ($message) {
-	open (MSG, "<$message")
-	    or error_exit ("cannot open message file '$message': $!");
-	while (<MSG>) {$txt.=$_};
-	close(MSG);
-    } else {
-	while (<STDIN>) {$txt.=$_};
+      or error_exit "no recipient specified";
+ 
+    if ($message && $interactive) {
+	error_exit "cannot have both -m (--message) and -i (--interactive)\n";
+    } 
+    
+    if ($jserver && $jserver =~ /(.*):(\d+)/) {
+	$jserver = $1;
+	$port    = $2;
     }
+	
+    my %dict = ('subject'     => ($subject  or ''),
+		'resource'    => ($resource or $RESOURCE),
+		'jserver'     => ($jserver or ''),
+		'port'        => ($port or 0),
+		'username'    => ($username or ''),
+		'password'    => ($password or ''),
+		'chatroom'    => ($chatroom or 0),
+		'interactive' => ($interactive or 0),
+		'tls'         => ($tls or 0),
+		'debug'       => ($debug or 0),
+		'verbose'     => ($verbose or 0),
+		'file'        => ($file or ($ENV{'HOME'}.'/.sendxmpprc')),
+		'recipient'   => $rcpt);
+
+   if ($DEBUG || $VERBOSE) {
+       while (my ($key,$val) = each %dict) {
+	   debug_print ("cmdline: '$key' => '$val'");
+       }
+   }	    
     
-    my %dict = ('subject'    => ($subject  or ''),
-		'resource'   => ($resource or $RESOURCE),
-		'jserver'    => ($jserver or ''),
-		'username'   => ($username or ''),
-		'password'   => ($password or ''),
-		'chatroom'   => ($chatroom or 0),
-		'tls'        => ($tls or 0),
-		'debug'      => ($debug or 0),
-		'message'    => ($txt or ''),
-		'file'       => ($file or ($ENV{'HOME'}.'/.sendxmpprc')),
-		'recipient'  => $rcpt);
-    
-    return \%dict;    
+   return \%dict;    
 }
 
 
-sub xmpp_login ($$$$$$) {
+#
+# xmpp_login: login to the xmpp (jabber) server
+# input: hostname,port,username,password,resource,tls,debug
+# output: an XMPP connection object
+#
+sub xmpp_login ($$$$$$$) {
 
-    my ($host,$user,$pw,$res,$tls,$debug) = @_;
+    my ($host,$port,$user,$pw,$res,$tls,$debug) = @_;
     my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
-    my @res = $cnx->Connect(hostname=>$host,tls=>$tls);
-    xmpp_check_result("Connect",\@res);
-    
-    @res = $cnx->AuthSend(hostname=>$host,
-			  username=>$user,
-			  password=>$pw,
-			  resource=>$res);
-    xmpp_check_result("AuthSend",\@res);
-        
-    @res = $cnx->PresenceSend();
-    xmpp_check_result("PresenceSend",\@res);
+    error_exit "could not create XMPP client object: $!"
+	unless ($cnx);    
+
+    my @res;
+    if (!$port) {
+	@res = $cnx->Connect(hostname=>$host,tls=>$tls);
+    } else {
+	@res = $cnx->Connect(hostname=>$host,port=>$port,tls=>$tls);
+    }
+
+    xmpp_check_result("Connect",\@res,$cnx);
+
+    @res = $cnx->AuthSend('hostname' => $host,
+			  'username' => $user,
+			  'password' => $pw,
+			  'resource' => $res);
+    xmpp_check_result('AuthSend',\@res,$cnx);
     
     return $cnx;    
 }
 
-sub xmpp_send_message ($$$$) {
-    
-    my ($cnx,$rcpt,$subject,$body) = @_;
-    my @res = $cnx->MessageSend(to=>$rcpt,
-				subject=>$subject,
-				body=>$body);
-    xmpp_check_result(@res);
-}    
 
 
-sub xmpp_send_group_message ($$$$) {
 
-    my ($cnx,$resource,$rcpt,$msg) =  @_;
+#
+# xmmp_send: send the message, determine from cmdline
+# whether it's to individual or chatroom
+#
+sub xmpp_send ($$$) {
     
-    # set the presence
-    my $pres = new Net::XMPP::Presence;
-    my @res = $pres->SetTo("$rcpt/$resource");
-    xmpp_check_result('SetTo',\@res);
-    @res = $cnx->Send($pres);
-    xmpp_check_result('Send',\@res);
+    my ($cnx, $cmdline, $txt) = @_;
     
-    # create/send the message
-    my $groupmsg = new Net::XMPP::Message;
-    @res = $groupmsg->SetMessage(to=>$rcpt, 
-				 body=>$msg,
-				 type=>'groupchat');
-    xmpp_check_result('SetMessage',\@res);
-    
-    @res = $cnx->Send($groupmsg);
-    xmpp_check_result('Send',\@res);
-
-    # leave the group
-    @res = $pres->SetPresence (Type=>'unavailable',To=>$rcpt);
-    xmpp_check_result('SetPresence',\@res);
+    unless ($$cmdline{'chatroom'}) {
+	xmpp_send_message ($cnx,
+			   $$cmdline{'recipient'},
+			   $$cmdline{'subject'},
+			   $txt);
+    } else {
+	xmpp_send_chatroom_message ($cnx,
+				    $$cmdline{'resource'},
+				    $$cmdline{'subject'},
+				    $$cmdline{'recipient'},
+				    $txt);
+    }
 }
 
 
+
+#
+# xmpp_send_message: send a message to some xmpp user
+# input: connection,recipient,subject,msg
+#
+sub xmpp_send_message ($$$$) {
+    
+    my ($cnx,$rcpt,$subject,$msg) = @_;
+ 
+    # for some reason, MessageSend does not return anything
+    $cnx->MessageSend('to'      => $rcpt,
+		      'subject' => $subject,
+		      'body'    => $msg);
+    
+    xmpp_check_result('MessageSend',0,$cnx);
+}
+    
+    
+#
+# xmpp_send_chatroom_message: send a message to a chatroom
+# input: connection,resource,subject,recipient,message
+#
+sub xmpp_send_chatroom_message ($$$$$) {
+
+    my ($cnx,$resource,$subject,$rcpt,$msg) =  @_;
+    
+    # set the presence
+    my $pres = new Net::XMPP::Presence;
+    my $res = $pres->SetTo("$rcpt/$resource");
+
+    $cnx->Send($pres); 
+
+    # create/send the message
+    my $groupmsg = new Net::XMPP::Message;
+    $groupmsg->SetMessage(to      => $rcpt, 
+			  body    => $msg,
+			  subject => $subject,
+			  type    => 'groupchat');
+
+    $res = $cnx->Send($groupmsg);
+    xmpp_check_result ('Send',$res,$cnx); 
+    
+    # leave the group
+    $pres->SetPresence (Type=>'unavailable',To=>$rcpt);
+}
+
+
+#
+# xmpp_logout: log out from the xmpp server
+# input: connection
+#
 sub xmpp_logout($) {
     
     # HACK
@@ -222,45 +348,90 @@ sub xmpp_logout($) {
     
     my $cnx = shift;
     $cnx->Disconnect();
+    xmpp_check_result ('Disconnect',0); # well, nothing to check, really
 }
 
 
+
+#
+# xmpp_check_result: check the return value from some xmpp function execution
+# input: text, result, [connection]                   
+#
 sub xmpp_check_result {
 
     my ($txt,$res,$cnx)=@_;
     
-    return unless (defined $res && defined @$res && scalar @$res);
-
-    if (scalar @$res == 1 || $$res[0] eq 'ok') {
-	print STDERR "$txt: " . $$res[0] . "\n"
-	    if ($DEBUG);
-    } else {
-	error_exit ("Error '$txt': " . join (': ',@$res) . "\n", $cnx);
+    error_exit ("Error '$txt': result undefined")
+	unless (defined $res);
+  
+    # res may be 0
+    if ($res == 0) {
+	debug_print "$txt";
+    # result can be true or 'ok' 
+    } elsif ((@$res == 1 && $$res[0]) || $$res[0] eq 'ok') {	
+	debug_print "$txt: " .  $$res[0];
+    # otherwise, there is some error
+    } else {	
+	my $errmsg = $cnx->GetErrorCode() || '?';
+	error_exit ("Error '$txt': " . join (': ',@$res) . "[$errmsg]", $cnx);
     }
 }
 
+
+#
+# terminate; exit the program upon TERM sig reception
+#
+sub terminate () {
+    debug_print "caught TERM";
+    xmpp_logout($main::CNX);
+    exit 0;
+}
+
+
+#
+# debug_print: print the data if defined and DEBUG || VERBOSE is TRUE
+# input: [array of strings]
+#
+sub debug_print {
+    print STDERR "sendxmpp: " . (join ' ', @_) . "\n"
+	if (@_ && ($DEBUG ||$VERBOSE));
+}
+
+
+#
+# error_exit: print error message and exit the program
+#             logs out if there is a connection 
+# input: error, [connection]
+#
 sub error_exit {
     
     my ($err,$cnx) = @_;
-    print STDERR "$err\n";
-    
-    xmpp_logout ($cnx) if ($cnx);
+    print STDERR "$err\n";   
+    xmpp_logout ($cnx) 
+	if ($cnx);
+ 
     exit 1;
 }
 
 
+#
+# usage: print short usage message and exit
+#
 sub usage () {
    
-    print 
-	"sendxmpp version $VERSION, (c) 2004 Dirk-Jan C. Binnema\n" .
+    print STDERR 
+	"sendxmpp version $VERSION, Copyright (c) 2004,2005 Dirk-Jan C. Binnema\n" .
 	"usage: sendxmpp [options] <recipient>\n" .
 	"or refer to the the sendxmpp manpage\n";
     
-    exit(0);
+    exit 0;
 }
 
-# the manpage
 
+#
+# the fine manual
+#
+=pod
 =head1 NAME
 
 sendxmpp - send xmpp messages from the commandline.
@@ -274,9 +445,6 @@ sendxmpp [options] <recipient>
 sendxmpp is a program to send XMPP (Jabber) messages from the commandline, not
 unlike L<mail(1)>. Messages can be sent both to individual recipients and chatrooms.
 
-the recipient is either another jabber-account or a jabber-chatroom (use '-c' to tell 
-sendxmpp it's a chatroom)
-
 =head1 OPTIONS
 
 B<-f>,B<--file> <file>
@@ -289,10 +457,10 @@ B<-p>,B<--password> <password>
 use <password> instead of the one in the configuration file
 
 B<-j>,B<--jserver> <server>
-use jabber server <server> instead of the one in the configuration file
+use jabber server <server> instead of the one in the configuration file. Note that you can add :<port> to use a non-default port, ie. B<-j myjabber.org:1234>
 
 B<-r>,B<--resource> <res>
-use resource <res> for the sender [default: 'sendxmpp']
+use resource <res> for the sender [default: 'sendxmpp']; when sending to a chatroom, this determines the 'alias'
 
 B<-t>,B<--tls>
 connect securely, using TLS
@@ -301,21 +469,28 @@ B<-c>,B<--chatroom>
 send the message to a chatroom 
 
 B<-s>,B<--subject> <subject> 
-set the subject for the message to <subject> [default: '']
+set the subject for the message to <subject> [default: '']; when sending to a chatroom,
+this will set the subject for the chatroom
 
 B<-m>,B<--message> <message>
 read the message from <message> (a file) instead of stdin
+
+B<-i>,B<--interactive>
+work in interactive mode, reading lines from stdin and sending the one-at-time
+
+B<-v>,B<--verbose>
+give verbose output about what is happening
 
 B<-h>,B<--help>,B<--usage>
 show a 'Usage' message
 
 B<-d>,B<--debug>
-show debugging info while running
+show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output!
 
 =head1 CONFIGURATION FILE
 
 You may define a '~/.sendxmpprc' file with the necessary data for your 
-xmmp-account, with a line of the format:
+xmpp-account, with a line of the format:
 
    <user>@<host> <password>
 
@@ -324,7 +499,11 @@ e.g.:
     # my account
     alice@jabber.org  secret
 
-('#' and newlines are allowed like in shellscripts)
+('#' and newlines are allowed like in shellscripts). You can add :<port> to
+the <host> if you need an alternative port, ie.
+
+    # account with weird port number
+    alice@myjabberhost.com:1234 secret
     
 B<NOTE>: for your security, sendxmpp demands that the configuration
 file is owned by you and has file permissions 600.
@@ -337,21 +516,23 @@ file is owned by you and has file permissions 600.
 
    $ echo "Dinner Time" | sendxmpp -r TheCook --chatroom test2@conference.jabber.org    
 
+     or to send your system logs somewhere, as new lines appear:
+   
+   $ tail -f /var/log/syslog | sendxmpp -i sysadmin@myjabberserver.com
+     
+     NOTE: be careful not the overload public jabber services
+     
 =head1 SEE ALSO
 
 Documentation for the L<Net::XMPP> module
 
 The jabber homepage: http://www.jabber.org/
 
-The sendxmpp homepage: http://www.djcbsoftware.nl/code/sendxmmp (the xmmp homepage)
+The sendxmpp homepage: http://www.djcbsoftware.nl/code/sendxmpp
 
 =head1 AUTHOR
 
-sendxmpp has been written by Dirk-Jan C. Binnema <dirk-jan@djcbsoftware.nl>, and uses
+sendxmpp has been written by Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>, and uses
 the L<Net::XMPP> modules written by Ryan Eatmon.
 
 =cut
-
-
-
-
