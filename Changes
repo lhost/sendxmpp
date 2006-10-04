@@ -1,8 +1,9 @@
 2006-10-04:
-	Fixed sending of UTF-8 messages: patch from Denis Shaposhnikov <dsh AT vlink.ru> [2006-03-31]
+	- Fixed sending of UTF-8 messages: patch from Denis Shaposhnikov <dsh AT vlink.ru> [2006-03-31]
+	- Print error message on connect error. Patch from Jean-Baptiste Quenot <jbq AT caraldi.com> [2006-07-17]
 
 2006-09-25: maintainer change
-	New maintainer is Lubomir Host 'rajo' <rajo AT platon.sk>, jabber: <rajo AT jabber.platon.sk>
+	- New maintainer is Lubomir Host 'rajo' <rajo AT platon.sk>, jabber: <rajo AT jabber.platon.sk>
 
 2005-05-07: version 0.0.8 released.
 	- add options to specify non-default ports

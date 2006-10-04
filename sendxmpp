@@ -246,11 +246,13 @@ sub xmpp_login ($$$$$$$) {
 	unless ($cnx);    
 
     my @res;
-    if (!$port) {
-	@res = $cnx->Connect(hostname=>$host,tls=>$tls);
-    } else {
-	@res = $cnx->Connect(hostname=>$host,port=>$port,tls=>$tls);
-    }
+	if (!$port) {
+		@res = $cnx->Connect(hostname => $host, tls => $tls);
+		error_exit ("Could not connect to server '$host': $@") unless @res;
+	} else {
+		@res = $cnx->Connect(hostname => $host, port => $port, tls => $tls);
+		error_exit ("Could not connect to '$host' on port $port: $@") unless @res;
+	}
 
     xmpp_check_result("Connect",\@res,$cnx);
 
