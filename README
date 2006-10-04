@@ -1,5 +1,3 @@
-Time-stamp: <2004-11-20 22:52:12 (djcb)>; -*-mode:text-*- 
-
 README 
 ------
 
@@ -7,20 +5,24 @@ sendxmpp is a perl-script to send XMPP (jabber) messages, similar to
 what mail(1) does for mail. XMPP is an open, non-proprietary protocol
 for instant messaging. See www.jabber.org for more information.
 
-sendxmpp was written by me, Dirk-Jan C. Binnema, and is available
-under the term of the GNU General Public License v2. The hard work is
-done by Ryan Eatmon's Net::XMPP-modules, and you need have them
-installed for sendxmpp to work.
+sendxmpp was written by me, Dirk-Jan C. Binnema, and is available under
+the term of the GNU General Public License v2. The hard work is done by
+Ryan Eatmon's Net::XMPP-modules, and you need have them installed for
+sendxmpp to work. Current maintainer is Lubomir Host 'rajo' <rajo AT
+platon.sk>
 
 Obviously, you also need a jabber account; they are freely available
 at jabber.org, but you can also install your own servers.
 
 sendxmpp is already in use for monitoring remote servers (servers can
-warn by sending xmmp-messages), and watching CVS commit messages
+warn by sending xmpp-messages), and watching CVS commit messages
 (developers are all connected to a XMPP-chatroom to which messages are
 sent. 
 
 I am interested in hearing about other uses.
 
-Dirk-Jan Binnema <djcb@djcbsoftware.nl>, or djcb@jabber.org (IM).
+Homepage: http://sendxmpp.platon.sk
+
+Lubomir Host 'rajo' <rajo AT platon.sk>
+Jabber: <rajo AT jabber.platon.sk> (IM)
 

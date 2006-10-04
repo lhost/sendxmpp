@@ -1,17 +1,20 @@
 #!/usr/bin/perl -w
 
 eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
-    if 0; # not running under some shell
-#-*-mode:perl-*-
-#Time-stamp: <2005-05-07 19:24:09 (djcb)>
+if 0; # not running under some shell
 
+#
 # script to send message using xmpp (aka jabber), 
-#   somewhat resembling mail(1)
-
+# somewhat resembling mail(1)
+#
 # Author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
-# Copyright (c) 2004,2005 Dirk-Jan C. Binnema
-
+# Copyright (c) 2004, 2005 Dirk-Jan C. Binnema
+#
+# Maintainer: Lubomir Host 'rajo' <rajo AT platon.sk>
+# Homepage: http://sendxmpp.platon.sk
+#
 # Released under the terms of the GNU General Public License v2
+#
 
 use Net::XMPP;
 use Getopt::Long;
@@ -535,11 +538,12 @@ Documentation for the L<Net::XMPP> module
 
 The jabber homepage: http://www.jabber.org/
 
-The sendxmpp homepage: http://www.djcbsoftware.nl/code/sendxmpp
+The sendxmpp homepage: http://sendxmpp.platon.sk
 
 =head1 AUTHOR
 
 sendxmpp has been written by Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>, and uses
-the L<Net::XMPP> modules written by Ryan Eatmon.
+the L<Net::XMPP> modules written by Ryan Eatmon. Current maintainer is
+Lubomir Host 'rajo' <rajo AT platon.sk>, http://rajo.platon.sk
 
 =cut
