@@ -2,6 +2,7 @@
 	- Fixed sending of UTF-8 messages: patch from Denis Shaposhnikov <dsh AT vlink.ru> [2006-03-31]
 	- Print error message on connect error. Patch from Jean-Baptiste Quenot <jbq AT caraldi.com> [2006-07-17]
 	- Added multiple recipient patch by Lubomir Host 'rajo' <rjao AT platon.sk> [2006-08-30]
+	- Fixed bug with -message parameter. Thanks to Thomas Warnick <thwarnick AT gmail.com> [2005-09-06]
 
 2006-09-25: maintainer change
 	- New maintainer is Lubomir Host 'rajo' <rajo AT platon.sk>, jabber: <rajo AT jabber.platon.sk>

@@ -210,6 +210,7 @@ sub parse_cmdline () {
     }
 	
     my %dict = ('subject'     => ($subject  or ''),
+		'message'	=> ($message or ''),
 		'resource'    => ($resource or $RESOURCE),
 		'jserver'     => ($jserver or ''),
 		'port'        => ($port or 0),
