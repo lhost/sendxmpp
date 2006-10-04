@@ -1,0 +1,12 @@
+INSTALL
+-------
+sendxmpp requires perl 5.x, Getopt::Long and Net::XMPP.
+
+$ tar xvfz sendxmpp-(version).tar.gz
+$ cd sendxmpp-(version)
+$ perl Makefile.pm
+$ make
+$ make install
+
+
+

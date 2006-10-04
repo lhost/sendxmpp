@@ -1,0 +1,15 @@
+2004-11-21: version 0.0.4 released.
+	- small fixes
+	- packaging (after Gentoo request)
+	- documentation (man)
+
+2004-11-17: version 0.0.3 is released. New features are:
+	- Support for authentication using SSL/TLS;
+	- Support for sending messages to chatrooms;
+	- Support for providing login information on the command line;
+	- Improved error handling;
+	- NOTE: the .sendxmpprc format has changed.
+
+2004-11-01: version 0.0.2 released. Initial release
+
+
