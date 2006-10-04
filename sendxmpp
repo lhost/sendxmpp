@@ -197,7 +197,7 @@ sub parse_cmdline () {
     usage () 
       if ($help);   
     
-    my $rcpt = $ARGV[0]
+    my @rcpt = @ARGV
       or error_exit "no recipient specified";
  
     if ($message && $interactive) {
@@ -221,7 +221,7 @@ sub parse_cmdline () {
 		'debug'       => ($debug or 0),
 		'verbose'     => ($verbose or 0),
 		'file'        => ($file or ($ENV{'HOME'}.'/.sendxmpprc')),
-		'recipient'   => $rcpt);
+		'recipient'   => \@rcpt);
 
    if ($DEBUG || $VERBOSE) {
        while (my ($key,$val) = each %dict) {
@@ -276,18 +276,22 @@ sub xmpp_send ($$$) {
     
     my ($cnx, $cmdline, $txt) = @_;
     
-    unless ($$cmdline{'chatroom'}) {
-	xmpp_send_message ($cnx,
-			   $$cmdline{'recipient'},
-			   $$cmdline{'subject'},
-			   $txt);
-    } else {
-	xmpp_send_chatroom_message ($cnx,
-				    $$cmdline{'resource'},
-				    $$cmdline{'subject'},
-				    $$cmdline{'recipient'},
-				    $txt);
-    }
+	unless ($$cmdline{'chatroom'}) {
+		map {
+			xmpp_send_message ($cnx,
+				$_, #$$cmdline{'recipient'},
+				$$cmdline{'subject'},
+				$txt)
+		} @{$$cmdline{'recipient'}};
+	} else {
+		map {
+			xmpp_send_chatroom_message ($cnx,
+				$$cmdline{'resource'},
+				$$cmdline{'subject'},
+				$_, # $$cmdline{'recipient'},
+				$txt)
+		} @{$$cmdline{'recipient'}};
+	}
 }
 
 
@@ -423,7 +427,7 @@ sub usage () {
    
     print STDERR 
 	"sendxmpp version $VERSION, Copyright (c) 2004,2005 Dirk-Jan C. Binnema\n" .
-	"usage: sendxmpp [options] <recipient>\n" .
+	"usage: sendxmpp [options] <recipient1> [<recipient2> ...]\n" .
 	"or refer to the the sendxmpp manpage\n";
     
     exit 0;
@@ -440,7 +444,7 @@ sendxmpp - send xmpp messages from the commandline.
 
 =head1 SYNOPSIS
 
-sendxmpp [options] <recipient>
+sendxmpp [options] <recipient1> [<recipient2> ...]
 
 =head1 DESCRIPTION
 
