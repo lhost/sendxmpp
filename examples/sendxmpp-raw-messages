@@ -1,0 +1,28 @@
+#
+# RAW XMPP messages, which can be used with sendxmpp
+#
+# Thanks to David Ammouial <da AT weeno.net>
+#
+# cat examples/send-url.xml | sendxmpp --raw
+#
+
+# Sending an URL along with a message:
+<message to='foo@server.com'>
+	<body>Check out the new sendxmpp website!</body>
+	<x xmlns='jabber:x:oob'>
+		<url>http://sendxmpp.platon.sk/</url>
+	</x>
+</message>
+
+# Adding an item to the roster
+<iq type="set" id="a1">
+	<query xmlns="jabber:iq:roster">
+		<item jid="newfriend@hello.com" name="Lisa" />
+	</query>
+</iq>
+
+# Sending a presence subscription request
+<presence to="newfriend@hello.com" type="subscribe">
+	<status>Please authorize me :)</status>
+</presence>
+

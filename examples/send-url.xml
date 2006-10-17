@@ -1,0 +1,6 @@
+<message to='rajo@server.somewhere.sk'>
+	<body>Check out the new sendxmpp website!</body>
+	<x xmlns='jabber:x:oob'>
+		<url>http://sendxmpp.platon.sk/</url>
+	</x>
+</message>

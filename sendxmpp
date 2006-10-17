@@ -26,6 +26,7 @@ use open ':std';
 # subroutines decls
 sub xmpp_login($$$$$$$);
 sub xmpp_send ($$$);
+sub xmpp_send_raw_xml($$);
 sub xmpp_send_message($$$$);
 sub xmpp_send_chatroom_message($$$$$);
 sub xmpp_logout($);
@@ -183,7 +184,7 @@ sub parse_cmdline () {
     usage() unless (scalar(@ARGV));
     
     my ($subject,$file,$resource,$jserver,$port,$username,$password,
-	$message,$chatroom,$debug,$tls,$interactive,$help,$verbose);
+	$message, $chatroom, $debug, $tls, $interactive, $help, $raw, $verbose);
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
@@ -196,22 +197,31 @@ sub parse_cmdline () {
 			  'interactive|i'  => \$interactive,
 			  'help|usage|h'   => \$help,
 			  'debug|d'        => \$debug,
+			  'raw|w'          => \$raw,
 			  'verbose|v'      => \$verbose);
-    usage () 
-      if ($help);   
+    usage () if ($help);   
     
-    my @rcpt = @ARGV
-      or error_exit "no recipient specified";
- 
-    if ($message && $interactive) {
-	error_exit "cannot have both -m (--message) and -i (--interactive)\n";
-    } 
-    
-    if ($jserver && $jserver =~ /(.*):(\d+)/) {
-	$jserver = $1;
-	$port    = $2;
-    }
-	
+	my @rcpt = @ARGV;
+
+	if (defined($raw) && scalar(@rcpt) > 0) {
+		error_exit "You must give a recipient or --raw (but not both)";
+	}
+	if ($raw && $subject) {
+		error_exit("You cannot specify a subject in raw XML mode");
+	}
+	if ($raw && $chatroom) {
+		error_exit("The chatroom option is pointless in raw XML mode");
+	}
+
+	if ($message && $interactive) {
+		error_exit "Cannot have both -m (--message) and -i (--interactive)";
+	} 
+
+	if ($jserver && $jserver =~ /(.*):(\d+)/) {
+		$jserver = $1;
+		$port    = $2;
+	}
+
     my %dict = ('subject'     => ($subject  or ''),
 		'message'	=> ($message or ''),
 		'resource'    => ($resource or $RESOURCE),
@@ -224,6 +234,7 @@ sub parse_cmdline () {
 		'tls'         => ($tls or 0),
 		'debug'       => ($debug or 0),
 		'verbose'     => ($verbose or 0),
+		'raw'         => ($raw or 0),
 		'file'        => ($file or ($ENV{'HOME'}.'/.sendxmpprc')),
 		'recipient'   => \@rcpt);
 
@@ -281,13 +292,19 @@ sub xmpp_send ($$$) {
     my ($cnx, $cmdline, $txt) = @_;
     
 	unless ($$cmdline{'chatroom'}) {
-		map {
-			xmpp_send_message ($cnx,
-				$_, #$$cmdline{'recipient'},
-				$$cmdline{'subject'},
-				$txt)
-		} @{$$cmdline{'recipient'}};
-	} else {
+    	unless ($$cmdline{'raw'}) {
+			map {
+				xmpp_send_message ($cnx,
+					$_, #$$cmdline{'recipient'},
+					$$cmdline{'subject'},
+					$txt)
+			} @{$$cmdline{'recipient'}};
+    	}
+		else {
+			xmpp_send_raw_xml ($cnx, $txt);
+    	}
+	}
+	else {
 		map {
 			xmpp_send_chatroom_message ($cnx,
 				$$cmdline{'resource'},
@@ -298,6 +315,20 @@ sub xmpp_send ($$$) {
 	}
 }
 
+
+
+#
+# xmpp_send_raw_xml: send a raw XML packet
+# input: connection,packet
+#
+sub xmpp_send_raw_xml ($$) {
+    
+    my ($cnx,$packet) = @_;
+ 
+    # for some reason, Send does not return anything
+    $cnx->Send($packet);
+    xmpp_check_result('Send',0,$cnx);
+}
 
 
 #
@@ -430,7 +461,7 @@ sub error_exit {
 sub usage () {
    
     print STDERR 
-	"sendxmpp version $VERSION, Copyright (c) 2004,2005 Dirk-Jan C. Binnema\n" .
+	"sendxmpp version $VERSION, Copyright (c) 2004, 2005 Dirk-Jan C. Binnema\n" .
 	"usage: sendxmpp [options] <recipient1> [<recipient2> ...]\n" .
 	"or refer to the the sendxmpp manpage\n";
     
@@ -450,6 +481,8 @@ sendxmpp - send xmpp messages from the commandline.
 
 sendxmpp [options] <recipient1> [<recipient2> ...]
 
+sendxmpp --raw [options]
+
 =head1 DESCRIPTION
 
 sendxmpp is a program to send XMPP (Jabber) messages from the commandline, not
@@ -457,64 +490,97 @@ unlike L<mail(1)>. Messages can be sent both to individual recipients and chatro
 
 =head1 OPTIONS
 
-B<-f>,B<--file> <file>
-use <file> configuration file instead of ~/.sendxmpprc
+=over
 
-B<-u>,B<--username> <user>
-use <user> instead of the one in the configuration file
+=item B<-f>,B<--file> I<file>
 
-B<-p>,B<--password> <password>
-use <password> instead of the one in the configuration file
+Use I<file> configuration file instead of F<~/.sendxmpprc>
 
-B<-j>,B<--jserver> <server>
-use jabber server <server> instead of the one in the configuration file. Note that you can add :<port> to use a non-default port, ie. B<-j myjabber.org:1234>
+=item B<-u>,B<--username> I<user>
 
-B<-r>,B<--resource> <res>
-use resource <res> for the sender [default: 'sendxmpp']; when sending to a chatroom, this determines the 'alias'
+Use I<user> instead of the one in the configuration file
 
-B<-t>,B<--tls>
-connect securely, using TLS
+=item B<-p>,B<--password> I<password>
 
-B<-c>,B<--chatroom>
-send the message to a chatroom 
+Use I<password> instead of the one in the configuration file
 
-B<-s>,B<--subject> <subject> 
-set the subject for the message to <subject> [default: '']; when sending to a chatroom,
-this will set the subject for the chatroom
+=item B<-j>,B<--jserver> I<server>
 
-B<-m>,B<--message> <message>
-read the message from <message> (a file) instead of stdin
+Use jabber I<server> instead of the one in the configuration file.
 
-B<-i>,B<--interactive>
-work in interactive mode, reading lines from stdin and sending the one-at-time
+=item B<-r>,B<--resource> I<res>
 
-B<-v>,B<--verbose>
-give verbose output about what is happening
+Use resource I<res> for the sender [default: 'sendxmpp']; when sending to a chatroom, this determines the 'alias'
 
-B<-h>,B<--help>,B<--usage>
-show a 'Usage' message
+=item B<-t>,B<--tls>
 
-B<-d>,B<--debug>
-show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output!
+Connect securely, using TLS
+
+=item B<-c>,B<--chatroom>
+
+Send the message to a chatroom 
+
+=item B<-s>,B<--subject> I<subject>
+
+Set the subject for the message to I<subject> [default: '']; when sending to a chatroom, this will set the subject for the chatroom
+
+=item B<-m>,B<--message> I<message>
+
+Read the message from I<message> (a file) instead of stdin
+
+=item B<-i>,B<--interactive>
+
+Work in interactive mode, reading lines from stdin and sending the one-at-time
+
+=item B<-w>,B<--raw>
+
+Send raw XML message to jabber server
+
+=item B<-v>,B<--verbose>
+
+Give verbose output about what is happening
+
+=item B<-h>,B<--help>,B<--usage>
+
+Show a 'Usage' message
+
+=item B<-d>,B<--debug>
+
+Show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output!
+
+=back
 
 =head1 CONFIGURATION FILE
 
-You may define a '~/.sendxmpprc' file with the necessary data for your 
+You may define a 'F<~/.sendxmpprc>' file with the necessary data for your 
 xmpp-account, with a line of the format:
 
-   <user>@<host> <password>
+=over
+
+I<user>@I<server> I<password>
+
+=back
 
 e.g.:
 
     # my account
     alice@jabber.org  secret
 
-('#' and newlines are allowed like in shellscripts). You can add :<port> to
-the <host> if you need an alternative port, ie.
+('#' and newlines are allowed like in shellscripts). You can add a I<host> (or IP address) if it is different from the I<server> part of your JID:
+
+    # account with specific connection host
+    alice@myjabberserver.com;foo.com secret
+
+You can also add a I<port> if it is not the standard XMPP port:
 
     # account with weird port number
-    alice@myjabberhost.com:1234 secret
-    
+    alice@myjabberserver.com:1234 secret
+
+Of course, you may also mix the two:
+
+    # account with a specific host and port
+    alice@myjabberserver.com;foo.com:1234 secret
+
 B<NOTE>: for your security, sendxmpp demands that the configuration
 file is owned by you and has file permissions 600.
 
@@ -536,14 +602,14 @@ file is owned by you and has file permissions 600.
 
 Documentation for the L<Net::XMPP> module
 
-The jabber homepage: http://www.jabber.org/
+The jabber homepage: L<http://www.jabber.org/>
 
-The sendxmpp homepage: http://sendxmpp.platon.sk
+The sendxmpp homepage: L<http://sendxmpp.platon.sk>
 
 =head1 AUTHOR
 
 sendxmpp has been written by Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>, and uses
 the L<Net::XMPP> modules written by Ryan Eatmon. Current maintainer is
-Lubomir Host 'rajo' <rajo AT platon.sk>, http://rajo.platon.sk
+Lubomir Host 'rajo' <rajo AT platon.sk>, L<http://rajo.platon.sk>
 
 =cut
