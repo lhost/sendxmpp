@@ -143,7 +143,8 @@ sub read_config_file ($) {
 	
 	s/\#.*$//; # ignore comments in lines
 	
-	if (/([-\.\w]+)@([-\.\w:]+)\s+(\S+)\s*$/) {
+	# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has ccount with '#' as username
+	if (/([-\.\w_#]+)@([-\.\w:]+)\s+(\S+)\s*$/) {
 	    %config = ('username' => $1,
 		       'jserver'  => $2, 
 		       'port'     => 0,
