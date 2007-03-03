@@ -134,31 +134,32 @@ sub read_config_file ($) {
 
     my %config;
     my $line = 0;
-    while (<CFG>) {
-	
-	++$line;
-	
-	next if (/^\s*$/);     # ignore empty lines
-	next if (/^\s*\#.*/);  # ignore comment lines
-	
-	s/\#.*$//; # ignore comments in lines
-	
-	# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has ccount with '#' as username
-	if (/([-\.\w_#]+)@([-\.\w:]+)\s+(\S+)\s*$/) {
-	    %config = ('username' => $1,
-		       'jserver'  => $2, 
-		       'port'     => 0,
-		       'password' => $3);
+	while (<CFG>) {
 
-	    if ($config{'jserver'} =~ /(.*):(\d+)/) {
-		$config{'jserver'} = $1;
-		$config{'port'}    = $2;
-	    }
-	} else {
-	    close CFG;
-	    error_exit ("syntax error in line $line of $cfg_file");
+		++$line;
+
+		next if (/^\s*$/);     # ignore empty lines
+		next if (/^\s*\#.*/);  # ignore comment lines
+
+		#s/\#.*$//; # ignore comments in lines
+
+		# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has ccount with '#' as username
+		if (/^([\.\w_#-]+)@([-\.\w:]+)\s+(\S+)\s*/) {
+			%config = ('username' => $1,
+				'jserver'  => $2, 
+				'port'     => 0,
+				'password' => $3);
+
+			if ($config{'jserver'} =~ /(.*):(\d+)/) {
+				$config{'jserver'} = $1;
+				$config{'port'}    = $2;
+			}
+		}
+		else {
+			close CFG;
+			error_exit ("syntax error in line $line of $cfg_file");
+		}
 	}
-    }
     
     close CFG;
     
