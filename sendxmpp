@@ -16,6 +16,7 @@ if 0; # not running under some shell
 # Released under the terms of the GNU General Public License v2
 #
 
+use Authen::SASL qw(Perl);
 use Net::XMPP;
 use Getopt::Long;
 use strict;
@@ -400,24 +401,26 @@ sub xmpp_logout($) {
 # xmpp_check_result: check the return value from some xmpp function execution
 # input: text, result, [connection]                   
 #
-sub xmpp_check_result {
-
-    my ($txt,$res,$cnx)=@_;
+sub xmpp_check_result
+{
+    my ($txt, $res, $cnx)=@_;
     
     error_exit ("Error '$txt': result undefined")
 	unless (defined $res);
   
     # res may be 0
-    if ($res == 0) {
-	debug_print "$txt";
-    # result can be true or 'ok' 
-    } elsif ((@$res == 1 && $$res[0]) || $$res[0] eq 'ok') {	
-	debug_print "$txt: " .  $$res[0];
-    # otherwise, there is some error
-    } else {	
-	my $errmsg = $cnx->GetErrorCode() || '?';
-	error_exit ("Error '$txt': " . join (': ',@$res) . "[$errmsg]", $cnx);
-    }
+	if ($res == 0) {
+		debug_print "$txt";
+		# result can be true or 'ok' 
+	}
+	elsif ((@$res == 1 && $$res[0]) || $$res[0] eq 'ok') {	
+		debug_print "$txt: " .  $$res[0];
+		# otherwise, there is some error
+	}
+	else {	
+		my $errmsg = $cnx->GetErrorCode() || '?';
+		error_exit ("Error '$txt': " . join (': ',@$res) . "[$errmsg]", $cnx);
+	}
 }
 
 
