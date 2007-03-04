@@ -16,7 +16,7 @@ if 0; # not running under some shell
 # Released under the terms of the GNU General Public License v2
 #
 
-use Authen::SASL qw(Perl);
+use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
 use Net::XMPP;
 use Getopt::Long;
 use strict;
