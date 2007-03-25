@@ -369,7 +369,6 @@ sub xmpp_send_chatroom_message ($$$$$) {
     my $groupmsg = new Net::XMPP::Message;
     $groupmsg->SetMessage(to      => $rcpt, 
 			  body    => $msg,
-			  subject => $subject,
 			  type    => 'groupchat');
 
     $res = $cnx->Send($groupmsg);
