@@ -1,3 +1,9 @@
+2007-09-10:
+	- Fix: config file permission check did not allow read only file (Andrej Mikus)
+	- Fix: authentication to Google Talk server (Andrej Mikus)
+	- Feature: added a -l/--headline option to sendxmpp, to allow to send
+	  a headline type message(Jerome Sautret <jerome.sautret@process-one.net>)
+
 2007-03-25:
 	- Fix: groupchat message doesn't has subject attribute. Thanks to Jakub Tucek <public AT otaznik.net>
 
