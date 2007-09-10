@@ -7,14 +7,17 @@ if 0; # not running under some shell
 # script to send message using xmpp (aka jabber), 
 # somewhat resembling mail(1)
 #
-# Author: Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>
-# Copyright (c) 2004, 2005 Dirk-Jan C. Binnema
-#
+# Author:     Dirk-Jan C. Binnema <djcb AT djcbsoftware.nl>
 # Maintainer: Lubomir Host 'rajo' <rajo AT platon.sk>
+# Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema
+# Copyright (c) 2006 - 2007 Lubomir Host 'rajo'
+#
 # Homepage: http://sendxmpp.platon.sk
 #
 # Released under the terms of the GNU General Public License v2
 #
+# $Platon: sendxmpp/sendxmpp,v 1.13 2007-09-10 19:08:35 rajo Exp $
+# $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
 use Net::XMPP;
@@ -25,10 +28,10 @@ use open ':utf8';
 use open ':std';                                                                                                                                                                     
 
 # subroutines decls
-sub xmpp_login($$$$$$$);
-sub xmpp_send ($$$);
+sub xmpp_login($$$$$$$$);
+sub xmpp_send ($$$$);
 sub xmpp_send_raw_xml($$);
-sub xmpp_send_message($$$$);
+sub xmpp_send_message($$$$$$);
 sub xmpp_send_chatroom_message($$$$$);
 sub xmpp_logout($);
 sub xmpp_check_result;
@@ -41,7 +44,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION     = '0.0.8';
+$VERSION	= [ q$Revision: 1.13 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
@@ -69,6 +72,7 @@ sub main () {
 			   $$cmdline{'port'}     || $$config{'port'},
 			   $$cmdline{'username'} || $$config{'username'},
 			   $$cmdline{'password'} || $$config{'password'},
+			   $$cmdline{'component'}|| $$config{'component'},
      			   $$cmdline{'resource'},
 			   $$cmdline{'tls'},
 			   $$cmdline{'debug'})
@@ -90,7 +94,7 @@ sub main () {
 	    $txt.=$_ while (<STDIN>);
 	}
 	
-	xmpp_send ($cnx,$cmdline,$txt);
+	xmpp_send ($cnx,$cmdline,$config,$txt);
     
     } else {
 	# the interactive case, read stdin line by line
@@ -102,7 +106,7 @@ sub main () {
 	# line by line...
 	while (<STDIN>) {
 	    chomp;
-	    xmpp_send ($cnx,$cmdline,$_);
+	    xmpp_send ($cnx,$cmdline,$config,$_);
 	}
     }
 
@@ -123,12 +127,12 @@ sub read_config_file ($) {
     my $cfg_file = shift;
     error_exit ("cannot read $cfg_file: $!") 
 	unless (-r $cfg_file);    
-    my $owner  = (stat($cfg_file))[4];
+    my $owner  = (stat _ )[4];
     error_exit ("you must own $cfg_file")
       unless ($owner == $>); 
-    my $mode = (stat($cfg_file))[2] & 07777;
-    error_exit ("$cfg_file must have mode 0600")
-      unless ($mode == 0600);
+    my $mode = (stat _ )[2] & 07777;
+    error_exit ("$cfg_file must not be accessible by others")
+      if ($mode & 0077);
     
     open (CFG,"<$cfg_file")
       or error_exit("cannot open $cfg_file for reading: $!");
@@ -145,11 +149,14 @@ sub read_config_file ($) {
 		#s/\#.*$//; # ignore comments in lines
 
 		# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has ccount with '#' as username
-		if (/^([\.\w_#-]+)@([-\.\w:]+)\s+(\S+)\s*/) {
-			%config = ('username' => $1,
-				'jserver'  => $2, 
-				'port'     => 0,
-				'password' => $3);
+		if (/([\.\w_#-]+)@([-\.\w:]+)\s+(\S+)\s*(\S+)?$/) {
+			%config = (
+				'username'	=> $1,
+				'jserver'	=> $2, 
+				'port'		=> 0,
+				'password'	=> $3,
+				'component'	=> $4,
+			);
 
 			if ($config{'jserver'} =~ /(.*):(\d+)/) {
 				$config{'jserver'} = $1;
@@ -186,15 +193,17 @@ sub parse_cmdline () {
     
     usage() unless (scalar(@ARGV));
     
-    my ($subject,$file,$resource,$jserver,$port,$username,$password,
-	$message, $chatroom, $debug, $tls, $interactive, $help, $raw, $verbose);
+	my ($subject,$file,$resource,$jserver,$port,$username,$password,$component,
+	$message, $chatroom, $headline, $debug, $tls, $interactive, $help, $raw, $verbose);
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
 			  'jserver|j=s'    => \$jserver,
+			  'component|o=s'  => \$component,
 			  'username|u=s'   => \$username,
 			  'password|p=s'   => \$password,
 			  'message|m=s'    => \$message,
+			  'headline|l'     => \$headline,
 			  'chatroom|c'     => \$chatroom,
 			  'tls|t'          => \$tls,
 			  'interactive|i'  => \$interactive,
@@ -229,10 +238,12 @@ sub parse_cmdline () {
 		'message'	=> ($message or ''),
 		'resource'    => ($resource or $RESOURCE),
 		'jserver'     => ($jserver or ''),
+		'component'   => ($component or ''),
 		'port'        => ($port or 0),
 		'username'    => ($username or ''),
 		'password'    => ($password or ''),
 		'chatroom'    => ($chatroom or 0),
+		'headline'    => ($headline or 0),
 		'interactive' => ($interactive or 0),
 		'tls'         => ($tls or 0),
 		'debug'       => ($debug or 0),
@@ -256,25 +267,37 @@ sub parse_cmdline () {
 # input: hostname,port,username,password,resource,tls,debug
 # output: an XMPP connection object
 #
-sub xmpp_login ($$$$$$$) {
+sub xmpp_login ($$$$$$$$) {
 
-    my ($host,$port,$user,$pw,$res,$tls,$debug) = @_;
+    my ($host, $port, $user, $pw, $comp, $res, $tls, $debug) = @_;
     my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
     error_exit "could not create XMPP client object: $!"
 	unless ($cnx);    
 
     my @res;
+	my $arghash = {
+		hostname		=> $host,
+		tls				=> $tls,
+		connectiontype	=> 'tcpip',
+		componentname	=> $comp
+	};
+	$arghash->{port} = $port if (!$port);
 	if (!$port) {
-		@res = $cnx->Connect(hostname => $host, tls => $tls);
+		@res = $cnx->Connect(%$arghash);
 		error_exit ("Could not connect to server '$host': $@") unless @res;
 	} else {
-		@res = $cnx->Connect(hostname => $host, port => $port, tls => $tls);
+		@res = $cnx->Connect(%$arghash);
 		error_exit ("Could not connect to '$host' on port $port: $@") unless @res;
 	}
 
     xmpp_check_result("Connect",\@res,$cnx);
 
-    @res = $cnx->AuthSend('hostname' => $host,
+	if ($comp) {
+		my $sid = $cnx->{SESSION}->{id};
+		$cnx->{STREAM}->{SIDS}->{$sid}->{hostname} = $comp
+	}
+
+    @res = $cnx->AuthSend(#'hostname' => $host,
 			  'username' => $user,
 			  'password' => $pw,
 			  'resource' => $res);
@@ -290,16 +313,18 @@ sub xmpp_login ($$$$$$$) {
 # xmmp_send: send the message, determine from cmdline
 # whether it's to individual or chatroom
 #
-sub xmpp_send ($$$) {
+sub xmpp_send ($$$$) {
     
-    my ($cnx, $cmdline, $txt) = @_;
+	my ($cnx, $cmdline, $config, $txt) = @_;
     
 	unless ($$cmdline{'chatroom'}) {
     	unless ($$cmdline{'raw'}) {
 			map {
 				xmpp_send_message ($cnx,
 					$_, #$$cmdline{'recipient'},
+					$$cmdline{'component'} || $$config{'component'},
 					$$cmdline{'subject'},
+					$$cmdline{'headline'},
 					$txt)
 			} @{$$cmdline{'recipient'}};
     	}
@@ -338,14 +363,20 @@ sub xmpp_send_raw_xml ($$) {
 # xmpp_send_message: send a message to some xmpp user
 # input: connection,recipient,subject,msg
 #
-sub xmpp_send_message ($$$$) {
+sub xmpp_send_message ($$$$$$) {
     
-    my ($cnx,$rcpt,$subject,$msg) = @_;
+    my ($cnx,$rcpt,$comp,$subject,$headline,$msg) = @_;
+
+	my $type = 'message';
+	if ($headline) {
+		$type='headline';
+	}
  
     # for some reason, MessageSend does not return anything
-    $cnx->MessageSend('to'      => $rcpt,
-		      'subject' => $subject,
-		      'body'    => $msg);
+    $cnx->MessageSend('to'      => $rcpt . ( $comp ? "\@$comp" : '' ),
+		'type'		=> $type,
+		'subject'	=> $subject,
+		'body'		=> $msg);
     
     xmpp_check_result('MessageSend',0,$cnx);
 }
@@ -465,7 +496,9 @@ sub error_exit {
 sub usage () {
    
     print STDERR 
-	"sendxmpp version $VERSION, Copyright (c) 2004, 2005 Dirk-Jan C. Binnema\n" .
+	"sendxmpp version $VERSION\n" .
+	"Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema\n" .
+   	"Copyright (c) 2006 - 2007 Lubomir Host 'rajo'\n" .
 	"usage: sendxmpp [options] <recipient1> [<recipient2> ...]\n" .
 	"or refer to the the sendxmpp manpage\n";
     
@@ -512,6 +545,10 @@ Use I<password> instead of the one in the configuration file
 
 Use jabber I<server> instead of the one in the configuration file.
 
+=item B<-o>,B<--component> I<componentname>
+
+Use componentname in connect call. Seems needed for Google talk.
+
 =item B<-r>,B<--resource> I<res>
 
 Use resource I<res> for the sender [default: 'sendxmpp']; when sending to a chatroom, this determines the 'alias'
@@ -519,6 +556,10 @@ Use resource I<res> for the sender [default: 'sendxmpp']; when sending to a chat
 =item B<-t>,B<--tls>
 
 Connect securely, using TLS
+
+=item B<-l>,B<--headline>
+
+Send a headline type message (not stored in offline messages)
 
 =item B<-c>,B<--chatroom>
 
@@ -561,7 +602,7 @@ xmpp-account, with a line of the format:
 
 =over
 
-I<user>@I<server> I<password>
+I<user>@I<server> I<password> I<componentname>
 
 =back
 
@@ -586,7 +627,7 @@ Of course, you may also mix the two:
     alice@myjabberserver.com;foo.com:1234 secret
 
 B<NOTE>: for your security, sendxmpp demands that the configuration
-file is owned by you and has file permissions 600.
+file is owned by you and readable only to you (permissions 600).
 
 =head1 EXAMPLE
 
