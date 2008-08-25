@@ -16,7 +16,7 @@ if 0; # not running under some shell
 #
 # Released under the terms of the GNU General Public License v2
 #
-# $Platon: sendxmpp/sendxmpp,v 1.13 2007-09-10 19:08:35 rajo Exp $
+# $Platon: sendxmpp/sendxmpp,v 1.14 2008-08-25 09:54:12 rajo Exp $
 # $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
@@ -44,7 +44,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.13 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= [ q$Revision: 1.14 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
@@ -148,8 +148,8 @@ sub read_config_file ($) {
 
 		#s/\#.*$//; # ignore comments in lines
 
-		# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has ccount with '#' as username
-		if (/([\.\w_#-]+)@([-\.\w:]+)\s+(\S+)\s*(\S+)?$/) {
+		# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has account with '#' as username
+		if (/([\.\w_#-]+)@([-\.\w:;]+)\s+(\S+)\s*(\S+)?$/) {
 			%config = (
 				'username'	=> $1,
 				'jserver'	=> $2, 
@@ -158,14 +158,22 @@ sub read_config_file ($) {
 				'component'	=> $4,
 			);
 
-			if ($config{'jserver'} =~ /(.*):(\d+)/) {
-				$config{'jserver'} = $1;
-				$config{'port'}    = $2;
-			}
 		}
 		else {
 			close CFG;
 			error_exit ("syntax error in line $line of $cfg_file");
+		}
+
+		# account with weird port number
+		if ($config{'jserver'}	=~ /(.*):(\d+)/) {
+			$config{'jserver'}	= $1;
+			$config{'port'}		= $2;
+		}
+
+		# account with specific connection host
+		if ($config{'jserver'}	=~ /(.*);([-\.\w]+)/) {
+			$config{'jserver'}	= $2;
+			$config{'username'}	.= "\@$1";
 		}
 	}
     
