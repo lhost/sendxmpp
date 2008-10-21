@@ -4,19 +4,19 @@ eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
 if 0; # not running under some shell
 
 #
-# script to send message using xmpp (aka jabber), 
+# script to send message using xmpp (aka jabber),
 # somewhat resembling mail(1)
 #
 # Author:     Dirk-Jan C. Binnema <djcb AT djcbsoftware.nl>
 # Maintainer: Lubomir Host 'rajo' <rajo AT platon.sk>
 # Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema
-# Copyright (c) 2006 - 2007 Lubomir Host 'rajo'
+# Copyright (c) 2006 - 2009 Lubomir Host 'rajo'
 #
 # Homepage: http://sendxmpp.platon.sk
 #
 # Released under the terms of the GNU General Public License v2
 #
-# $Platon: sendxmpp/sendxmpp,v 1.14 2008-08-25 09:54:12 rajo Exp $
+# $Platon: sendxmpp/sendxmpp,v 1.15 2008-10-21 21:31:53 rajo Exp $
 # $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
@@ -24,8 +24,8 @@ use Net::XMPP;
 use Getopt::Long;
 use strict;
 
-use open ':utf8';                                                                                                                                                                    
-use open ':std';                                                                                                                                                                     
+use open ':utf8';
+use open ':std';
 
 # subroutines decls
 sub xmpp_login($$$$$$$$);
@@ -44,11 +44,13 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.14 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= [ q$Revision: 1.15 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
-	     
+my @suppported_message_types	= qw( message chat headline );
+my $message_type				= 'message'; # default message type
+
 # start!
 &main;
 
@@ -58,15 +60,15 @@ my $DEBUG    = 0;
 sub main () {
 
     my $cmdline = parse_cmdline();
-    
+
     $| = 1; # no output buffering
 
     $DEBUG   = 1 if ($$cmdline{'debug'});
     $VERBOSE = 1 if ($$cmdline{'verbose'});
-    
+
     my $config = read_config_file ($$cmdline{'file'})
-	unless ($$cmdline{'jserver'} && $$cmdline{'username'} && $$cmdline{'password'});	
-    
+	unless ($$cmdline{'jserver'} && $$cmdline{'username'} && $$cmdline{'password'});
+
     # login to xmpp
     my $cnx =  xmpp_login ($$cmdline{'jserver'}  || $$config{'jserver'},
 			   $$cmdline{'port'}     || $$config{'port'},
@@ -77,30 +79,31 @@ sub main () {
 			   $$cmdline{'tls'},
 			   $$cmdline{'debug'})
       or error_exit("cannot login: $!");
-    
-   
+
+
     # read message from STDIN or or from -m/--message parameter
     if (!$$cmdline{interactive}) {
-	
+
 	# the non-interactive case
 	my $txt;
-	my $message = $$cmdline{'message'}; 
+	my $message = $$cmdline{'message'};
 	if ($message) {
 	    open (MSG, "<$message")
 	      or error_exit ("cannot open message file '$message': $!");
-	    while (<MSG>) {$txt.=$_};
+	    while (<MSG>) { $txt .= $_ };
 	    close(MSG);
-	}  else  {
-	    $txt.=$_ while (<STDIN>);
 	}
-	
+	else {
+	    $txt .= $_ while (<STDIN>);
+	}
+
 	xmpp_send ($cnx,$cmdline,$config,$txt);
-    
+
     } else {
 	# the interactive case, read stdin line by line
 
 	# deal with TERM
-	$main::CNX = $cnx;  
+	$main::CNX = $cnx;
 	$SIG{INT}=\&terminate;
 
 	# line by line...
@@ -122,18 +125,18 @@ sub main () {
 # output: hash with 'user', 'jserver' and 'password' keys
 #
 sub read_config_file ($) {
-   
+
     # check permissions
     my $cfg_file = shift;
-    error_exit ("cannot read $cfg_file: $!") 
-	unless (-r $cfg_file);    
+    error_exit ("cannot read $cfg_file: $!")
+	unless (-r $cfg_file);
     my $owner  = (stat _ )[4];
     error_exit ("you must own $cfg_file")
-      unless ($owner == $>); 
+      unless ($owner == $>);
     my $mode = (stat _ )[2] & 07777;
     error_exit ("$cfg_file must not be accessible by others")
       if ($mode & 0077);
-    
+
     open (CFG,"<$cfg_file")
       or error_exit("cannot open $cfg_file for reading: $!");
 
@@ -152,7 +155,7 @@ sub read_config_file ($) {
 		if (/([\.\w_#-]+)@([-\.\w:;]+)\s+(\S+)\s*(\S+)?$/) {
 			%config = (
 				'username'	=> $1,
-				'jserver'	=> $2, 
+				'jserver'	=> $2,
 				'port'		=> 0,
 				'password'	=> $3,
 				'component'	=> $4,
@@ -176,19 +179,19 @@ sub read_config_file ($) {
 			$config{'username'}	.= "\@$1";
 		}
 	}
-    
+
     close CFG;
-    
-    error_exit ("no correct config found in $cfg_file") 
-      unless (scalar(%config));       
+
+    error_exit ("no correct config found in $cfg_file")
+      unless (scalar(%config));
 
     if ($DEBUG || $VERBOSE) {
 	while (my ($key,$val) = each %config) {
 	    debug_print ("config: '$key' => '$val'");
 	}
-    }	    
-    
-    return \%config;	           
+    }
+
+    return \%config;
 }
 
 
@@ -198,9 +201,9 @@ sub read_config_file ($) {
 # output: hash with commandline options
 #
 sub parse_cmdline () {
-    
+
     usage() unless (scalar(@ARGV));
-    
+
 	my ($subject,$file,$resource,$jserver,$port,$username,$password,$component,
 	$message, $chatroom, $headline, $debug, $tls, $interactive, $help, $raw, $verbose);
     my $res = GetOptions ('subject|s=s'    => \$subject,
@@ -212,6 +215,7 @@ sub parse_cmdline () {
 			  'password|p=s'   => \$password,
 			  'message|m=s'    => \$message,
 			  'headline|l'     => \$headline,
+			  'message-type=s' => \$message_type,
 			  'chatroom|c'     => \$chatroom,
 			  'tls|t'          => \$tls,
 			  'interactive|i'  => \$interactive,
@@ -219,12 +223,12 @@ sub parse_cmdline () {
 			  'debug|d'        => \$debug,
 			  'raw|w'          => \$raw,
 			  'verbose|v'      => \$verbose);
-    usage () if ($help);   
-    
+    usage () if ($help);
+
 	my @rcpt = @ARGV;
 
 	if (defined($raw) && scalar(@rcpt) > 0) {
-		error_exit "You must give a recipient or --raw (but not both)";
+		error_exit("You must give a recipient or --raw (but not both)");
 	}
 	if ($raw && $subject) {
 		error_exit("You cannot specify a subject in raw XML mode");
@@ -234,8 +238,22 @@ sub parse_cmdline () {
 	}
 
 	if ($message && $interactive) {
-		error_exit "Cannot have both -m (--message) and -i (--interactive)";
-	} 
+		error_exit("Cannot have both -m (--message) and -i (--interactive)");
+	}
+
+	if (scalar(grep { $message_type eq $_ } @suppported_message_types) == 0) {
+		error_exit("Unsupported message type '$message_type'");
+	}
+
+	if ($headline) {
+		# --headline withouth --message-type
+		if ($message_type eq 'message') {
+			$message_type = 'headline'
+		}
+		else {
+			error_exit("Options --headline and --message-type are mutually exclusive");
+		}
+	}
 
 	if ($jserver && $jserver =~ /(.*):(\d+)/) {
 		$jserver = $1;
@@ -251,7 +269,7 @@ sub parse_cmdline () {
 		'username'    => ($username or ''),
 		'password'    => ($password or ''),
 		'chatroom'    => ($chatroom or 0),
-		'headline'    => ($headline or 0),
+		'message-type'    => $message_type,
 		'interactive' => ($interactive or 0),
 		'tls'         => ($tls or 0),
 		'debug'       => ($debug or 0),
@@ -264,9 +282,9 @@ sub parse_cmdline () {
        while (my ($key,$val) = each %dict) {
 	   debug_print ("cmdline: '$key' => '$val'");
        }
-   }	    
-    
-   return \%dict;    
+   }
+
+   return \%dict;
 }
 
 
@@ -280,7 +298,7 @@ sub xmpp_login ($$$$$$$$) {
     my ($host, $port, $user, $pw, $comp, $res, $tls, $debug) = @_;
     my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
     error_exit "could not create XMPP client object: $!"
-	unless ($cnx);    
+	unless ($cnx);
 
     my @res;
 	my $arghash = {
@@ -310,8 +328,8 @@ sub xmpp_login ($$$$$$$$) {
 			  'password' => $pw,
 			  'resource' => $res);
     xmpp_check_result('AuthSend',\@res,$cnx);
-    
-    return $cnx;    
+
+    return $cnx;
 }
 
 
@@ -322,9 +340,9 @@ sub xmpp_login ($$$$$$$$) {
 # whether it's to individual or chatroom
 #
 sub xmpp_send ($$$$) {
-    
+
 	my ($cnx, $cmdline, $config, $txt) = @_;
-    
+
 	unless ($$cmdline{'chatroom'}) {
     	unless ($$cmdline{'raw'}) {
 			map {
@@ -332,7 +350,7 @@ sub xmpp_send ($$$$) {
 					$_, #$$cmdline{'recipient'},
 					$$cmdline{'component'} || $$config{'component'},
 					$$cmdline{'subject'},
-					$$cmdline{'headline'},
+					$$cmdline{'message-type'},
 					$txt)
 			} @{$$cmdline{'recipient'}};
     	}
@@ -358,9 +376,9 @@ sub xmpp_send ($$$$) {
 # input: connection,packet
 #
 sub xmpp_send_raw_xml ($$) {
-    
+
     my ($cnx,$packet) = @_;
- 
+
     # for some reason, Send does not return anything
     $cnx->Send($packet);
     xmpp_check_result('Send',0,$cnx);
@@ -372,24 +390,19 @@ sub xmpp_send_raw_xml ($$) {
 # input: connection,recipient,subject,msg
 #
 sub xmpp_send_message ($$$$$$) {
-    
-    my ($cnx,$rcpt,$comp,$subject,$headline,$msg) = @_;
 
-	my $type = 'message';
-	if ($headline) {
-		$type='headline';
-	}
- 
+    my ($cnx, $rcpt, $comp, $subject, $message_type, $msg) = @_;
+
     # for some reason, MessageSend does not return anything
     $cnx->MessageSend('to'      => $rcpt . ( $comp ? "\@$comp" : '' ),
-		'type'		=> $type,
+		'type'		=> $message_type,
 		'subject'	=> $subject,
 		'body'		=> $msg);
-    
+
     xmpp_check_result('MessageSend',0,$cnx);
 }
-    
-    
+
+
 #
 # xmpp_send_chatroom_message: send a message to a chatroom
 # input: connection,resource,subject,recipient,message
@@ -397,22 +410,22 @@ sub xmpp_send_message ($$$$$$) {
 sub xmpp_send_chatroom_message ($$$$$) {
 
     my ($cnx,$resource,$subject,$rcpt,$msg) =  @_;
-    
+
     # set the presence
     my $pres = new Net::XMPP::Presence;
     my $res = $pres->SetTo("$rcpt/$resource");
 
-    $cnx->Send($pres); 
+    $cnx->Send($pres);
 
     # create/send the message
     my $groupmsg = new Net::XMPP::Message;
-    $groupmsg->SetMessage(to      => $rcpt, 
+    $groupmsg->SetMessage(to      => $rcpt,
 			  body    => $msg,
 			  type    => 'groupchat');
 
     $res = $cnx->Send($groupmsg);
-    xmpp_check_result ('Send',$res,$cnx); 
-    
+    xmpp_check_result ('Send',$res,$cnx);
+
     # leave the group
     $pres->SetPresence (Type=>'unavailable',To=>$rcpt);
 }
@@ -423,11 +436,11 @@ sub xmpp_send_chatroom_message ($$$$$) {
 # input: connection
 #
 sub xmpp_logout($) {
-    
+
     # HACK
     # messages may not be received if we log out too quickly...
-    sleep 1; 
-    
+    sleep 1;
+
     my $cnx = shift;
     $cnx->Disconnect();
     xmpp_check_result ('Disconnect',0); # well, nothing to check, really
@@ -437,25 +450,25 @@ sub xmpp_logout($) {
 
 #
 # xmpp_check_result: check the return value from some xmpp function execution
-# input: text, result, [connection]                   
+# input: text, result, [connection]
 #
 sub xmpp_check_result
 {
     my ($txt, $res, $cnx)=@_;
-    
+
     error_exit ("Error '$txt': result undefined")
 	unless (defined $res);
-  
+
     # res may be 0
 	if ($res == 0) {
 		debug_print "$txt";
-		# result can be true or 'ok' 
+		# result can be true or 'ok'
 	}
-	elsif ((@$res == 1 && $$res[0]) || $$res[0] eq 'ok') {	
+	elsif ((@$res == 1 && $$res[0]) || $$res[0] eq 'ok') {
 		debug_print "$txt: " .  $$res[0];
 		# otherwise, there is some error
 	}
-	else {	
+	else {
 		my $errmsg = $cnx->GetErrorCode() || '?';
 		error_exit ("Error '$txt': " . join (': ',@$res) . "[$errmsg]", $cnx);
 	}
@@ -484,16 +497,16 @@ sub debug_print {
 
 #
 # error_exit: print error message and exit the program
-#             logs out if there is a connection 
+#             logs out if there is a connection
 # input: error, [connection]
 #
 sub error_exit {
-    
+
     my ($err,$cnx) = @_;
-    print STDERR "$err\n";   
-    xmpp_logout ($cnx) 
+    print STDERR "$err\n";
+    xmpp_logout ($cnx)
 	if ($cnx);
- 
+
     exit 1;
 }
 
@@ -502,14 +515,14 @@ sub error_exit {
 # usage: print short usage message and exit
 #
 sub usage () {
-   
-    print STDERR 
+
+    print STDERR
 	"sendxmpp version $VERSION\n" .
 	"Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema\n" .
    	"Copyright (c) 2006 - 2007 Lubomir Host 'rajo'\n" .
 	"usage: sendxmpp [options] <recipient1> [<recipient2> ...]\n" .
 	"or refer to the the sendxmpp manpage\n";
-    
+
     exit 0;
 }
 
@@ -518,6 +531,7 @@ sub usage () {
 # the fine manual
 #
 =pod
+
 =head1 NAME
 
 sendxmpp - send xmpp messages from the commandline.
@@ -567,11 +581,15 @@ Connect securely, using TLS
 
 =item B<-l>,B<--headline>
 
-Send a headline type message (not stored in offline messages)
+Backward compatibility option. You should use B<--message-type=headline> instead. Send a headline type message (not stored in offline messages)
+
+=item B<--messages-type>
+
+Set type of message. Supported types are: B<message chat headline>. Default message type is B<message>. Headline type message can be set also with B<--headline> option, see B<--headline>
 
 =item B<-c>,B<--chatroom>
 
-Send the message to a chatroom 
+Send the message to a chatroom
 
 =item B<-s>,B<--subject> I<subject>
 
@@ -605,7 +623,7 @@ Show debugging info while running. B<WARNING>: This will include passwords etc. 
 
 =head1 CONFIGURATION FILE
 
-You may define a 'F<~/.sendxmpprc>' file with the necessary data for your 
+You may define a 'F<~/.sendxmpprc>' file with the necessary data for your
 xmpp-account, with a line of the format:
 
 =over
@@ -643,14 +661,14 @@ file is owned by you and readable only to you (permissions 600).
 
      or to send to a chatroom:
 
-   $ echo "Dinner Time" | sendxmpp -r TheCook --chatroom test2@conference.jabber.org    
+   $ echo "Dinner Time" | sendxmpp -r TheCook --chatroom test2@conference.jabber.org
 
      or to send your system logs somewhere, as new lines appear:
-   
+
    $ tail -f /var/log/syslog | sendxmpp -i sysadmin@myjabberserver.com
-     
+
      NOTE: be careful not the overload public jabber services
-     
+
 =head1 SEE ALSO
 
 Documentation for the L<Net::XMPP> module
