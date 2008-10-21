@@ -1,3 +1,13 @@
+2008-10-21:
+	- Added support for 'chat' message type. Implemented modified version of
+	  messsage-type-chat.patch from Marc Mims <marc AT questright.com>
+	  Supported message types are 'message', 'chat', 'headline'.
+	  Default message type is 'message'.
+
+2008-08-25:
+	- Fix: fixed parsing of account with specific connection host
+	  Thanks to Klaus Alexander Seistrup <klaus AT seistrup.dk>
+
 2007-09-10:
 	- Fix: config file permission check did not allow read only file (Andrej Mikus)
 	- Fix: authentication to Google Talk server (Andrej Mikus)
