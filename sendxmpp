@@ -16,7 +16,7 @@ if 0; # not running under some shell
 #
 # Released under the terms of the GNU General Public License v2
 #
-# $Platon: sendxmpp/sendxmpp,v 1.15 2008-10-21 21:31:53 rajo Exp $
+# $Platon: sendxmpp/sendxmpp,v 1.16 2009-01-09 22:29:53 rajo Exp $
 # $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
@@ -44,12 +44,13 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.15 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= [ q$Revision: 1.16 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
-my @suppported_message_types	= qw( message chat headline );
-my $message_type				= 'message'; # default message type
+# http://tools.ietf.org/html/rfc3921#section-2  section 2.1.1 - Types of Message
+my @suppported_message_types	= qw( chat error groupchat headline );
+my $message_type				= 'chat'; # default message type
 
 # start!
 &main;
