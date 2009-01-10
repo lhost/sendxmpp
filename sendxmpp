@@ -16,7 +16,7 @@ if 0; # not running under some shell
 #
 # Released under the terms of the GNU General Public License v2
 #
-# $Platon: sendxmpp/sendxmpp,v 1.17 2009-01-09 22:50:48 rajo Exp $
+# $Platon: sendxmpp/sendxmpp,v 1.18 2009-01-10 11:40:14 rajo Exp $
 # $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
@@ -44,7 +44,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.17 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= [ q$Revision: 1.18 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
@@ -308,8 +308,9 @@ sub xmpp_login ($$$$$$$$) {
 		connectiontype	=> 'tcpip',
 		componentname	=> $comp
 	};
-	$arghash->{port} = $port if (!$port);
-	if (!$port) {
+
+	delete $arghash->{port} unless $port; 
+	if ($arghash->{port}) {
 		@res = $cnx->Connect(%$arghash);
 		error_exit ("Could not connect to '$host' on port $port: $@") unless @res;
 	} else {
