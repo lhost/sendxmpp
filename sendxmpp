@@ -16,7 +16,7 @@ if 0; # not running under some shell
 #
 # Released under the terms of the GNU General Public License v2
 #
-# $Platon: sendxmpp/sendxmpp,v 1.18 2009-01-10 11:40:14 rajo Exp $
+# $Platon: sendxmpp/sendxmpp,v 1.19 2010-01-15 17:08:17 rajo Exp $
 # $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
@@ -28,7 +28,7 @@ use open ':utf8';
 use open ':std';
 
 # subroutines decls
-sub xmpp_login($$$$$$$$);
+sub xmpp_login($$$$$$$$$);
 sub xmpp_send ($$$$);
 sub xmpp_send_raw_xml($$);
 sub xmpp_send_message($$$$$$);
@@ -44,7 +44,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.18 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= [ q$Revision: 1.19 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
@@ -72,12 +72,13 @@ sub main () {
 
     # login to xmpp
     my $cnx =  xmpp_login ($$cmdline{'jserver'}  || $$config{'jserver'},
-			   $$cmdline{'port'}     || $$config{'port'},
+			   $$cmdline{'port'}     || $$config{'port'} || ($$cmdline{'ssl'} ? 5223 : 5222)),
 			   $$cmdline{'username'} || $$config{'username'},
 			   $$cmdline{'password'} || $$config{'password'},
 			   $$cmdline{'component'}|| $$config{'component'},
      			   $$cmdline{'resource'},
 			   $$cmdline{'tls'},
+			   $$cmdline{'ssl'},
 			   $$cmdline{'debug'})
       or error_exit("cannot login: $!");
 
@@ -206,7 +207,7 @@ sub parse_cmdline () {
     usage() unless (scalar(@ARGV));
 
 	my ($subject,$file,$resource,$jserver,$port,$username,$password,$component,
-	$message, $chatroom, $headline, $debug, $tls, $interactive, $help, $raw, $verbose);
+	$message, $chatroom, $headline, $debug, $tls, $ssl, $interactive, $help, $raw, $verbose);
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
@@ -219,6 +220,7 @@ sub parse_cmdline () {
 			  'message-type=s' => \$message_type,
 			  'chatroom|c'     => \$chatroom,
 			  'tls|t'          => \$tls,
+			  'ssl|e'          => \$ssl,
 			  'interactive|i'  => \$interactive,
 			  'help|usage|h'   => \$help,
 			  'debug|d'        => \$debug,
@@ -244,6 +246,10 @@ sub parse_cmdline () {
 
 	if (scalar(grep { $message_type eq $_ } @suppported_message_types) == 0) {
 		error_exit("Unsupported message type '$message_type'");
+	}
+	
+	if ($ssl && $tls) {
+	    error_exit("Connect securely wether using -e (--ssl) or -t (--tls)");
 	}
 
 	if ($headline) {
@@ -273,6 +279,7 @@ sub parse_cmdline () {
 		'message-type'    => $message_type,
 		'interactive' => ($interactive or 0),
 		'tls'         => ($tls or 0),
+		'ssl'         => ($ssl or 0),
 		'debug'       => ($debug or 0),
 		'verbose'     => ($verbose or 0),
 		'raw'         => ($raw or 0),
@@ -291,12 +298,12 @@ sub parse_cmdline () {
 
 #
 # xmpp_login: login to the xmpp (jabber) server
-# input: hostname,port,username,password,resource,tls,debug
+# input: hostname,port,username,password,resource,tls,ssl,debug
 # output: an XMPP connection object
 #
-sub xmpp_login ($$$$$$$$) {
+sub xmpp_login ($$$$$$$$$) {
 
-    my ($host, $port, $user, $pw, $comp, $res, $tls, $debug) = @_;
+    my ($host, $port, $user, $pw, $comp, $res, $tls, $ssl, $debug) = @_;
     my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
     error_exit "could not create XMPP client object: $!"
 	unless ($cnx);
@@ -304,7 +311,9 @@ sub xmpp_login ($$$$$$$$) {
     my @res;
 	my $arghash = {
 		hostname		=> $host,
+		port            => $port,
 		tls				=> $tls,
+		ssl             => $ssl,
 		connectiontype	=> 'tcpip',
 		componentname	=> $comp
 	};
@@ -580,6 +589,10 @@ Use resource I<res> for the sender [default: 'sendxmpp']; when sending to a chat
 =item B<-t>,B<--tls>
 
 Connect securely, using TLS
+
+=item B<-e>,B<--ssl>
+
+Connect securely, using SSL
 
 =item B<-l>,B<--headline>
 
