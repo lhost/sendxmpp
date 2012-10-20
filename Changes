@@ -1,3 +1,6 @@
+2012-10-20:
+	- CVS repository of sendxmpp migrated to Git repository https://github.com/lhost/sendxmpp
+
 2008-10-21:
 	- Added support for 'chat' message type. Implemented modified version of
 	  messsage-type-chat.patch from Marc Mims <marc AT questright.com>
