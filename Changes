@@ -1,5 +1,6 @@
 2012-10-20:
 	- CVS repository of sendxmpp migrated to Git repository https://github.com/lhost/sendxmpp
+	- Homepage URL changed to http://sendxmpp.hostname.sk
 
 2008-10-21:
 	- Added support for 'chat' message type. Implemented modified version of
