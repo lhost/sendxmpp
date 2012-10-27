@@ -28,7 +28,7 @@ use open ':utf8';
 use open ':std';
 
 # subroutines decls
-sub xmpp_login($$$$$$$$$);
+sub xmpp_login($$$$$$$$$$$);
 sub xmpp_send ($$$$);
 sub xmpp_send_raw_xml($$);
 sub xmpp_send_message($$$$$$);
@@ -76,8 +76,10 @@ sub main () {
 			   $$cmdline{'username'} || $$config{'username'},
 			   $$cmdline{'password'} || $$config{'password'},
 			   $$cmdline{'component'}|| $$config{'component'},
-     			   $$cmdline{'resource'},
-			   $$cmdline{'tls'},
+			   $$cmdline{'resource'},
+			   $$cmdline{'tls'} || $$config{'tls'},
+			   $$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
+			   $$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '',
 			   $$cmdline{'ssl'},
 			   $$cmdline{'debug'})
       or error_exit("cannot login: $!");
@@ -207,7 +209,9 @@ sub parse_cmdline () {
     usage() unless (scalar(@ARGV));
 
 	my ($subject,$file,$resource,$jserver,$port,$username,$password,$component,
-	$message, $chatroom, $headline, $debug, $tls, $ssl, $interactive, $help, $raw, $verbose);
+	$message, $chatroom, $headline, $debug, $tls, $ssl,
+	$no_tls_verify, $tls_ca_path,
+	$interactive, $help, $raw, $verbose);
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
@@ -220,6 +224,8 @@ sub parse_cmdline () {
 			  'message-type=s' => \$message_type,
 			  'chatroom|c'     => \$chatroom,
 			  'tls|t'          => \$tls,
+			  'no-tls-verify|n' => \$no_tls_verify,
+			  'tls-ca-path|a=s' => \$tls_ca_path,
 			  'ssl|e'          => \$ssl,
 			  'interactive|i'  => \$interactive,
 			  'help|usage|h'   => \$help,
@@ -279,6 +285,8 @@ sub parse_cmdline () {
 		'message-type'    => $message_type,
 		'interactive' => ($interactive or 0),
 		'tls'         => ($tls or 0),
+		'no-tls-verify' => ($no_tls_verify or 0),
+		'tls-ca-path' => ($tls_ca_path or ''),
 		'ssl'         => ($ssl or 0),
 		'debug'       => ($debug or 0),
 		'verbose'     => ($verbose or 0),
@@ -301,18 +309,26 @@ sub parse_cmdline () {
 # input: hostname,port,username,password,resource,tls,ssl,debug
 # output: an XMPP connection object
 #
-sub xmpp_login ($$$$$$$$$) {
+sub xmpp_login ($$$$$$$$$$$) {
 
-    my ($host, $port, $user, $pw, $comp, $res, $tls, $ssl, $debug) = @_;
+    my ($host, $port, $user, $pw, $comp, $res, $tls, $no_tls_verify, $tls_ca_path, $ssl, $debug) = @_;
     my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
     error_exit "could not create XMPP client object: $!"
 	unless ($cnx);
+
+	my $ssl_verify = 0x01;
+	if ($no_tls_verify) { $ssl_verify = 0x00; }
+	debug_print "ssl_verify: $ssl_verify";
+
+	debug_print "tls_ca_path: $tls_ca_path";
 
     my @res;
 	my $arghash = {
 		hostname		=> $host,
 		port            => $port,
 		tls				=> $tls,
+		ssl_verify		=> $ssl_verify,
+		ssl_ca_path		=> $tls_ca_path,
 		ssl             => $ssl,
 		connectiontype	=> 'tcpip',
 		componentname	=> $comp
@@ -594,6 +610,14 @@ Connect securely, using TLS
 =item B<-e>,B<--ssl>
 
 Connect securely, using SSL
+
+=item B<-n>,B<--no-tls-verify>
+
+Deactivate the verification of SSL certificates. Better way is to use parameter B<--tls-ca-path> with the needed path to CA certificates.
+
+=item B<-a>,B<--tls-ca-path>
+
+Path to your custom CA certificates, so you can verificate SSL certificates during connecting.
 
 =item B<-l>,B<--headline>
 
