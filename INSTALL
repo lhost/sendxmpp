@@ -1,12 +1,15 @@
 INSTALL
 -------
+
+Installation from Git repository:
+---------------------------------
+
+	cd /tmp
+	git clone https://github.com/lhost/sendxmpp.git
+	cd sendxmpp/
+	perl Makefile.PL
+	make
+	make install
+
 sendxmpp requires perl 5.x, Getopt::Long and Net::XMPP.
-
-$ tar xvfz sendxmpp-(version).tar.gz
-$ cd sendxmpp-(version)
-$ perl Makefile.pm
-$ make
-$ make install
-
-
 
