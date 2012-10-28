@@ -1,5 +1,5 @@
 2012-10-28:
-	- release version 1.23
+	- released version 1.23
 	- added options --no-tls-verify and --tls-ca-path, thanks to Alexander Weidinger <aw AT sz9i.net>
 
 2012-10-20:
