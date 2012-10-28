@@ -10,14 +10,12 @@ if 0; # not running under some shell
 # Author:     Dirk-Jan C. Binnema <djcb AT djcbsoftware.nl>
 # Maintainer: Lubomir Host 'rajo' <rajo AT platon.sk>
 # Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema
-# Copyright (c) 2006 - 2009 Lubomir Host 'rajo'
+# Copyright (c) 2006 - 2012 Lubomir Host 'rajo'
 #
 # Homepage: http://sendxmpp.hostname.sk
 #
 # Released under the terms of the GNU General Public License v2
 #
-# $Platon: sendxmpp/sendxmpp,v 1.22 2010-10-03 19:36:35 rajo Exp $
-# $Id: $
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
 use Net::XMPP;
@@ -44,7 +42,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.22 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= [ q$Revision: 1.23 $ =~ m/(\S+)\s*$/g ]->[0];
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
