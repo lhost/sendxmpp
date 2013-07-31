@@ -66,7 +66,7 @@ sub main () {
     $VERBOSE = 1 if ($$cmdline{'verbose'});
 
     my $config = read_config_file ($$cmdline{'file'})
-	unless ($$cmdline{'jserver'} && $$cmdline{'username'} && $$cmdline{'password'});
+	unless ($$cmdline{'username'} && $$cmdline{'password'});
 
     # login to xmpp
     my $cnx =  xmpp_login ($$cmdline{'jserver'}  || $$config{'jserver'},
@@ -210,6 +210,7 @@ sub parse_cmdline () {
 	$message, $chatroom, $headline, $debug, $tls, $ssl,
 	$no_tls_verify, $tls_ca_path,
 	$interactive, $help, $raw, $verbose);
+    $debug = 0;
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
@@ -227,7 +228,7 @@ sub parse_cmdline () {
 			  'ssl|e'          => \$ssl,
 			  'interactive|i'  => \$interactive,
 			  'help|usage|h'   => \$help,
-			  'debug|d'        => \$debug,
+			  'debug|d:i'        => sub { $debug = $_[1] ? $_[1] : $debug + 1 },
 			  'raw|w'          => \$raw,
 			  'verbose|v'      => \$verbose);
     usage () if ($help);
@@ -310,7 +311,7 @@ sub parse_cmdline () {
 sub xmpp_login ($$$$$$$$$$$) {
 
     my ($host, $port, $user, $pw, $comp, $res, $tls, $no_tls_verify, $tls_ca_path, $ssl, $debug) = @_;
-    my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
+    my $cnx = new Net::XMPP::Client(debuglevel=>$debug);
     error_exit "could not create XMPP client object: $!"
 	unless ($cnx);
 
@@ -332,13 +333,26 @@ sub xmpp_login ($$$$$$$$$$$) {
 		componentname	=> $comp
 	};
 
+    # use the xmpp domain as the host and enable SRV lookups
+    if (!$host) {
+	if ($user =~ /@(.*)/) {
+	    $arghash->{hostname} = $host = $1;
+	    $arghash->{srv} = 1;
+	    debug_print "enabling SRV lookups";
+	    
+	} else {
+	    error_exit "unable to determine a host to connect to (no cmdline, no config, no SRV possible)";
+	}	    
+
+    }
+
 	delete $arghash->{port} unless $port; 
 	if ($arghash->{port}) {
 		@res = $cnx->Connect(%$arghash);
-		error_exit ("Could not connect to '$host' on port $port: ".$cnx->GetErrorCode()||$@) unless @res;
+		error_exit ("Could not connect to '$host' on port $port: ".($cnx->GetErrorCode()||$@)) unless @res;
 	} else {
 		@res = $cnx->Connect(%$arghash);
-		error_exit ("Could not connect to server '$host': ".$cnx->GetErrorCode()||$@) unless @res;
+		error_exit ("Could not connect to server '$host': ".($cnx->GetErrorCode()||$@)) unless @res;
 	}
 
     xmpp_check_result("Connect",\@res,$cnx);
@@ -655,7 +669,7 @@ Show a 'Usage' message
 
 =item B<-d>,B<--debug>
 
-Show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output!
+Show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output! Specify multiple times to increase debug level.
 
 =back
 
