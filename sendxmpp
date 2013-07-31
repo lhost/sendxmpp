@@ -75,7 +75,7 @@ sub main () {
 			   $$cmdline{'password'} || $$config{'password'},
 			   $$cmdline{'component'}|| $$config{'component'},
 			   $$cmdline{'resource'},
-			   $$cmdline{'tls'} || $$config{'tls'},
+			   $$cmdline{'tls'} || $$config{'tls'} || 0,
 			   $$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
 			   $$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '',
 			   $$cmdline{'ssl'},
@@ -335,10 +335,10 @@ sub xmpp_login ($$$$$$$$$$$) {
 	delete $arghash->{port} unless $port; 
 	if ($arghash->{port}) {
 		@res = $cnx->Connect(%$arghash);
-		error_exit ("Could not connect to '$host' on port $port: $@") unless @res;
+		error_exit ("Could not connect to '$host' on port $port: ".$cnx->GetErrorCode()||$@) unless @res;
 	} else {
 		@res = $cnx->Connect(%$arghash);
-		error_exit ("Could not connect to server '$host': $@") unless @res;
+		error_exit ("Could not connect to server '$host': ".$cnx->GetErrorCode()||$@) unless @res;
 	}
 
     xmpp_check_result("Connect",\@res,$cnx);
