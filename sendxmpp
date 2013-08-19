@@ -19,6 +19,7 @@ if 0; # not running under some shell
 
 use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module installed
 use Net::XMPP;
+use Net::Domain;
 use Getopt::Long;
 use strict;
 
@@ -26,7 +27,7 @@ use open ':utf8';
 use open ':std';
 
 # subroutines decls
-sub xmpp_login($$$$$$$$$$$);
+sub xmpp_login($$$$$$$$$$$$);
 sub xmpp_send ($$$$);
 sub xmpp_send_raw_xml($$);
 sub xmpp_send_message($$$$$$);
@@ -66,7 +67,7 @@ sub main () {
     $VERBOSE = 1 if ($$cmdline{'verbose'});
 
     my $config = read_config_file ($$cmdline{'file'})
-	unless ($$cmdline{'jserver'} && $$cmdline{'username'} && $$cmdline{'password'});
+	unless ($$cmdline{'sso'} || ($$cmdline{'username'} && $$cmdline{'password'}));
 
     # login to xmpp
     my $cnx =  xmpp_login ($$cmdline{'jserver'}  || $$config{'jserver'},
@@ -75,11 +76,12 @@ sub main () {
 			   $$cmdline{'password'} || $$config{'password'},
 			   $$cmdline{'component'}|| $$config{'component'},
 			   $$cmdline{'resource'},
-			   $$cmdline{'tls'} || $$config{'tls'},
+			   $$cmdline{'tls'} || $$config{'tls'} || 0,
 			   $$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
 			   $$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '',
 			   $$cmdline{'ssl'},
-			   $$cmdline{'debug'})
+			   $$cmdline{'debug'},
+	                   $$cmdline{'sso'})
       or error_exit("cannot login: $!");
 
 
@@ -206,10 +208,11 @@ sub parse_cmdline () {
 
     usage() unless (scalar(@ARGV));
 
-	my ($subject,$file,$resource,$jserver,$port,$username,$password,$component,
+	my ($subject,$file,$resource,$jserver,$port,$username,$password,$sso,$component,
 	$message, $chatroom, $headline, $debug, $tls, $ssl,
 	$no_tls_verify, $tls_ca_path,
 	$interactive, $help, $raw, $verbose);
+    $debug = 0;
     my $res = GetOptions ('subject|s=s'    => \$subject,
 			  'file|f=s'       => \$file,
 			  'resource|r=s'   => \$resource,
@@ -217,6 +220,7 @@ sub parse_cmdline () {
 			  'component|o=s'  => \$component,
 			  'username|u=s'   => \$username,
 			  'password|p=s'   => \$password,
+			  'sso'            => \$sso,
 			  'message|m=s'    => \$message,
 			  'headline|l'     => \$headline,
 			  'message-type=s' => \$message_type,
@@ -227,7 +231,7 @@ sub parse_cmdline () {
 			  'ssl|e'          => \$ssl,
 			  'interactive|i'  => \$interactive,
 			  'help|usage|h'   => \$help,
-			  'debug|d'        => \$debug,
+			  'debug|d:i'        => sub { $debug = $_[1] ? $_[1] : $debug + 1 },
 			  'raw|w'          => \$raw,
 			  'verbose|v'      => \$verbose);
     usage () if ($help);
@@ -256,6 +260,10 @@ sub parse_cmdline () {
 	    error_exit("Connect securely wether using -e (--ssl) or -t (--tls)");
 	}
 
+        if ($sso && $username) {
+	    error_exit("When using --sso, user should not be specified");
+        }
+
 	if ($headline) {
 		# --headline withouth --message-type
 		if ($message_type eq 'message') {
@@ -279,6 +287,7 @@ sub parse_cmdline () {
 		'port'        => ($port or 0),
 		'username'    => ($username or ''),
 		'password'    => ($password or ''),
+		'sso'         => ($sso or 0),
 		'chatroom'    => ($chatroom or 0),
 		'message-type'    => $message_type,
 		'interactive' => ($interactive or 0),
@@ -307,10 +316,10 @@ sub parse_cmdline () {
 # input: hostname,port,username,password,resource,tls,ssl,debug
 # output: an XMPP connection object
 #
-sub xmpp_login ($$$$$$$$$$$) {
+sub xmpp_login ($$$$$$$$$$$$) {
 
-    my ($host, $port, $user, $pw, $comp, $res, $tls, $no_tls_verify, $tls_ca_path, $ssl, $debug) = @_;
-    my $cnx = new Net::XMPP::Client(debuglevel=>($debug?2:0));
+    my ($host, $port, $user, $pw, $comp, $res, $tls, $no_tls_verify, $tls_ca_path, $ssl, $debug, $sso) = @_;
+    my $cnx = new Net::XMPP::Client(debuglevel=>$debug);
     error_exit "could not create XMPP client object: $!"
 	unless ($cnx);
 
@@ -332,13 +341,31 @@ sub xmpp_login ($$$$$$$$$$$) {
 		componentname	=> $comp
 	};
 
+    if ($sso) {
+	$user = join('@', scalar getpwuid($<), Net::Domain::hostdomain());
+	debug_print "using SSO user $user";
+    }
+
+    # use the xmpp domain as the host and enable SRV lookups
+    if (!$host) {
+	if ($user =~ /@(.*)/) {
+	    $arghash->{hostname} = $host = $1;
+	    $arghash->{srv} = 1;
+	    debug_print "enabling SRV lookups";
+	    
+	} else {
+	    error_exit "unable to determine a host to connect to (no cmdline, no config, no SRV possible)";
+	}	    
+
+    }
+
 	delete $arghash->{port} unless $port; 
 	if ($arghash->{port}) {
 		@res = $cnx->Connect(%$arghash);
-		error_exit ("Could not connect to '$host' on port $port: $@") unless @res;
+		error_exit ("Could not connect to '$host' on port $port: ".($cnx->GetErrorCode()||$@)) unless @res;
 	} else {
 		@res = $cnx->Connect(%$arghash);
-		error_exit ("Could not connect to server '$host': $@") unless @res;
+		error_exit ("Could not connect to server '$host': ".($cnx->GetErrorCode()||$@)) unless @res;
 	}
 
     xmpp_check_result("Connect",\@res,$cnx);
@@ -589,6 +616,10 @@ Use I<user> instead of the one in the configuration file
 
 Use I<password> instead of the one in the configuration file
 
+=item B<--sso> 
+
+Instead of specifying username or password, attempt to use system level SSO (e.g. kerberos) if supported.
+
 =item B<-j>,B<--jserver> I<server>
 
 Use jabber I<server> instead of the one in the configuration file.
@@ -655,7 +686,7 @@ Show a 'Usage' message
 
 =item B<-d>,B<--debug>
 
-Show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output!
+Show debugging info while running. B<WARNING>: This will include passwords etc. so be careful with the output! Specify multiple times to increase debug level.
 
 =back
 
