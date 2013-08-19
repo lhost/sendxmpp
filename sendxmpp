@@ -8,9 +8,9 @@ if 0; # not running under some shell
 # somewhat resembling mail(1)
 #
 # Author:     Dirk-Jan C. Binnema <djcb AT djcbsoftware.nl>
-# Maintainer: Lubomir Host 'rajo' <rajo AT platon.sk>
+# Maintainer: Lubomir Host <lubomir.host@gmail.com>
 # Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema
-# Copyright (c) 2006 - 2012 Lubomir Host 'rajo'
+# Copyright (c) 2006 - 2013 Lubomir Host
 #
 # Homepage: http://sendxmpp.hostname.sk
 #
@@ -545,7 +545,7 @@ sub usage () {
     print STDERR
 	"sendxmpp version $VERSION\n" .
 	"Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema\n" .
-   	"Copyright (c) 2006 - 2007 Lubomir Host 'rajo'\n" .
+   	"Copyright (c) 2006 - 2007 Lubomir Host\n" .
 	"usage: sendxmpp [options] <recipient1> [<recipient2> ...]\n" .
 	"or refer to the the sendxmpp manpage\n";
 
@@ -719,6 +719,6 @@ The sendxmpp homepage: L<http://sendxmpp.hostname.sk>
 
 sendxmpp has been written by Dirk-Jan C. Binnema <djcb@djcbsoftware.nl>, and uses
 the L<Net::XMPP> modules written by Ryan Eatmon. Current maintainer is
-Lubomir Host 'rajo' <rajo AT platon.sk>, L<http://blog.hostname.sk>
+Lubomir Host <lubomir.host@gmail.com>, L<http://blog.hostname.sk>
 
 =cut

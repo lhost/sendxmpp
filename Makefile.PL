@@ -9,7 +9,7 @@ $ENV{'PREFIX'}='/usr/local/' unless ($ENV{'PREFIX'});
 
 
 WriteMakefile (NAME => 'sendxmpp',
-	       AUTHOR => 'Lubomir Host \'rajo\' <rajo AT platon.sk>',
+	       AUTHOR => 'Lubomir Host <lubomir.host@gmail.com>',
 	       ABSTRACT => 'Script for sending xmpp messages',
 	       PREREQ_PM => {'Getopt::Long'=>2.00,
 			     'Net::XMPP'=>1.0},
