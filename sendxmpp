@@ -78,9 +78,9 @@ sub main () { # {{{
 		$$cmdline{'password'} || $$config{'password'},
 		$$cmdline{'component'}|| $$config{'component'},
 		$$cmdline{'resource'},
-		$$cmdline{'tls'} || $$config{'tls'} || 0,
+		$$cmdline{'tls'} || $$config{'tls'} || 1,
 		$$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
-		$$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '',
+		$$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '/etc/pki/tls/certs/ca-bundle.crt',
 		$$cmdline{'ssl'},
 		$$cmdline{'http'} || $$config{'http'} || 0,
 		$$cmdline{'debug'},
@@ -269,6 +269,10 @@ sub parse_cmdline () { # {{{
 
 	if ($sso && $username) {
 		error_exit("When using --sso, user should not be specified");
+	}
+
+	if (!$sso && !$username) {
+		$sso = 1;
 	}
 
 	if ($headline) {
