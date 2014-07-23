@@ -10,7 +10,7 @@ if 0; # not running under some shell
 # Author:     Dirk-Jan C. Binnema <djcb AT djcbsoftware.nl>
 # Maintainer: Lubomir Host <lubomir.host@gmail.com>
 # Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema
-# Copyright (c) 2006 - 2013 Lubomir Host
+# Copyright (c) 2006 - 2014 Lubomir Host
 #
 # Homepage: http://sendxmpp.hostname.sk
 #
@@ -57,7 +57,7 @@ my $message_type				= 'chat'; # default message type
 #
 # main: main routine
 #
-sub main () {
+sub main () { # {{{
 
     my $cmdline = parse_cmdline();
 
@@ -70,65 +70,64 @@ sub main () {
 	unless ($$cmdline{'sso'} || ($$cmdline{'username'} && $$cmdline{'password'}));
 
     # login to xmpp
-    my $cnx =  xmpp_login ($$cmdline{'jserver'}  || $$config{'jserver'},
-			   $$cmdline{'port'}     || $$config{'port'} || ($$cmdline{'ssl'} ? 5223 : 5222),
-			   $$cmdline{'username'} || $$config{'username'},
-			   $$cmdline{'password'} || $$config{'password'},
-			   $$cmdline{'component'}|| $$config{'component'},
-			   $$cmdline{'resource'},
-			   $$cmdline{'tls'} || $$config{'tls'} || 0,
-			   $$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
-			   $$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '',
-			   $$cmdline{'ssl'},
-			   $$cmdline{'debug'},
-	                   $$cmdline{'sso'})
-      or error_exit("cannot login: $!");
+    my $cnx =  xmpp_login (
+		$$cmdline{'jserver'}  || $$config{'jserver'},
+		$$cmdline{'port'}     || $$config{'port'} || ($$cmdline{'ssl'} ? 5223 : 5222),
+		$$cmdline{'username'} || $$config{'username'},
+		$$cmdline{'password'} || $$config{'password'},
+		$$cmdline{'component'}|| $$config{'component'},
+		$$cmdline{'resource'},
+		$$cmdline{'tls'} || $$config{'tls'} || 0,
+		$$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
+		$$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '',
+		$$cmdline{'ssl'},
+		$$cmdline{'debug'},
+		$$cmdline{'sso'}
+	) or error_exit("cannot login: $!");
 
 
-    # read message from STDIN or or from -m/--message parameter
+    # read message from STDIN or from -m/--message parameter
     if (!$$cmdline{interactive}) {
+		# the non-interactive case
+		my $txt;
+		my $message = $$cmdline{'message'};
+		if ($message) {
+			open (MSG, "<$message")
+				or error_exit ("cannot open message file '$message': $!");
+			while (<MSG>) { $txt .= $_ };
+			close(MSG);
+		}
+		else {
+			$txt .= $_ while (<STDIN>);
+		}
 
-	# the non-interactive case
-	my $txt;
-	my $message = $$cmdline{'message'};
-	if ($message) {
-	    open (MSG, "<$message")
-	      or error_exit ("cannot open message file '$message': $!");
-	    while (<MSG>) { $txt .= $_ };
-	    close(MSG);
-	}
-	else {
-	    $txt .= $_ while (<STDIN>);
-	}
+		xmpp_send ($cnx,$cmdline,$config,$txt);
 
-	xmpp_send ($cnx,$cmdline,$config,$txt);
-
-    } else {
-	# the interactive case, read stdin line by line
-
-	# deal with TERM
-	$main::CNX = $cnx;
-	$SIG{INT}=\&terminate;
-
-	# line by line...
-	while (<STDIN>) {
-	    chomp;
-	    xmpp_send ($cnx,$cmdline,$config,$_);
-	}
     }
+	else {
+		# the interactive case, read stdin line by line
 
-    xmpp_logout($cnx);
-    exit 0;
-}
+		# deal with TERM
+		$main::CNX = $cnx;
+		$SIG{INT}=\&terminate;
 
+		# line by line...
+		while (<STDIN>) {
+			chomp;
+			xmpp_send ($cnx,$cmdline,$config,$_);
+		}
+	}
 
+	xmpp_logout($cnx);
+	exit 0;
+} # }}}
 
 #
 # read_config_file: read the configuration file
 # input: filename
 # output: hash with 'user', 'jserver' and 'password' keys
 #
-sub read_config_file ($) {
+sub read_config_file ($) { # {{{
 
     # check permissions
     my $cfg_file = shift;
@@ -189,52 +188,54 @@ sub read_config_file ($) {
     error_exit ("no correct config found in $cfg_file")
       unless (scalar(%config));
 
-    if ($DEBUG || $VERBOSE) {
-	while (my ($key,$val) = each %config) {
-	    debug_print ("config: '$key' => '$val'");
-	}
-    }
+	  if ($DEBUG || $VERBOSE) {
+		  while (my ($key,$val) = each %config) {
+			  debug_print ("config: '$key' => '$val'");
+		  }
+	  }
 
     return \%config;
-}
-
-
+} # }}}
 
 #
 # parse_cmdline: parse commandline options
 # output: hash with commandline options
 #
-sub parse_cmdline () {
+sub parse_cmdline () { # {{{
 
     usage() unless (scalar(@ARGV));
 
-	my ($subject,$file,$resource,$jserver,$port,$username,$password,$sso,$component,
-	$message, $chatroom, $headline, $debug, $tls, $ssl,
-	$no_tls_verify, $tls_ca_path,
-	$interactive, $help, $raw, $verbose);
+	my ($subject, $file, $resource, $jserver, $port, $username, $password, $sso, $component, 
+		$message, $chatroom, $headline, $debug, $tls, $ssl,
+		$no_tls_verify, $tls_ca_path,
+		$interactive, $help, $raw, $verbose
+	);
     $debug = 0;
-    my $res = GetOptions ('subject|s=s'    => \$subject,
-			  'file|f=s'       => \$file,
-			  'resource|r=s'   => \$resource,
-			  'jserver|j=s'    => \$jserver,
-			  'component|o=s'  => \$component,
-			  'username|u=s'   => \$username,
-			  'password|p=s'   => \$password,
-			  'sso'            => \$sso,
-			  'message|m=s'    => \$message,
-			  'headline|l'     => \$headline,
-			  'message-type=s' => \$message_type,
-			  'chatroom|c'     => \$chatroom,
-			  'tls|t'          => \$tls,
-			  'no-tls-verify|n' => \$no_tls_verify,
-			  'tls-ca-path|a=s' => \$tls_ca_path,
-			  'ssl|e'          => \$ssl,
-			  'interactive|i'  => \$interactive,
-			  'help|usage|h'   => \$help,
-			  'debug|d:i'        => sub { $debug = $_[1] ? $_[1] : $debug + 1 },
-			  'raw|w'          => \$raw,
-			  'verbose|v'      => \$verbose);
-    usage () if ($help);
+    my $res = GetOptions (
+		'subject|s=s'		=> \$subject,
+		'file|f=s'			=> \$file,
+		'resource|r=s'		=> \$resource,
+		'jserver|j=s'		=> \$jserver,
+		'component|o=s'		=> \$component,
+		'username|u=s'		=> \$username,
+		'password|p=s'		=> \$password,
+		'sso'				=> \$sso,
+		'message|m=s'		=> \$message,
+		'headline|l'		=> \$headline,
+		'message-type=s'	=> \$message_type,
+		'chatroom|c'		=> \$chatroom,
+		'tls|t'				=> \$tls,
+		'no-tls-verify|n'	=> \$no_tls_verify,
+		'tls-ca-path|a=s'	=> \$tls_ca_path,
+		'ssl|e'				=> \$ssl,
+		'interactive|i'		=> \$interactive,
+		'help|usage|h'		=> \$help,
+		'debug|d:i'			=> sub { $debug = $_[1] ? $_[1] : $debug + 1 },
+		'raw|w'				=> \$raw,
+		'verbose|v'			=> \$verbose
+	);
+
+	usage () if ($help);
 
 	my @rcpt = @ARGV;
 
@@ -260,9 +261,9 @@ sub parse_cmdline () {
 	    error_exit("Connect securely wether using -e (--ssl) or -t (--tls)");
 	}
 
-        if ($sso && $username) {
-	    error_exit("When using --sso, user should not be specified");
-        }
+	if ($sso && $username) {
+		error_exit("When using --sso, user should not be specified");
+	}
 
 	if ($headline) {
 		# --headline withouth --message-type
@@ -279,27 +280,29 @@ sub parse_cmdline () {
 		$port    = $2;
 	}
 
-    my %dict = ('subject'     => ($subject  or ''),
-		'message'	=> ($message or ''),
-		'resource'    => ($resource or $RESOURCE),
-		'jserver'     => ($jserver or ''),
-		'component'   => ($component or ''),
-		'port'        => ($port or 0),
-		'username'    => ($username or ''),
-		'password'    => ($password or ''),
-		'sso'         => ($sso or 0),
-		'chatroom'    => ($chatroom or 0),
-		'message-type'    => $message_type,
-		'interactive' => ($interactive or 0),
-		'tls'         => ($tls or 0),
-		'no-tls-verify' => ($no_tls_verify or 0),
-		'tls-ca-path' => ($tls_ca_path or ''),
-		'ssl'         => ($ssl or 0),
-		'debug'       => ($debug or 0),
-		'verbose'     => ($verbose or 0),
-		'raw'         => ($raw or 0),
-		'file'        => ($file or ($ENV{'HOME'}.'/.sendxmpprc')),
-		'recipient'   => \@rcpt);
+	my %dict = (
+		'subject'		=> ($subject  or ''),
+		'message'		=> ($message or ''),
+		'resource'		=> ($resource or $RESOURCE),
+		'jserver'		=> ($jserver or ''),
+		'component'		=> ($component or ''),
+		'port'			=> ($port or 0),
+		'username'		=> ($username or ''),
+		'password'		=> ($password or ''),
+		'sso'			=> ($sso or 0),
+		'chatroom'		=> ($chatroom or 0),
+		'message-type'	=> $message_type,
+		'interactive'	=> ($interactive or 0),
+		'tls'			=> ($tls or 0),
+		'no-tls-verify'	=> ($no_tls_verify or 0),
+		'tls-ca-path'	=> ($tls_ca_path or ''),
+		'ssl'			=> ($ssl or 0),
+		'debug'			=> ($debug or 0),
+		'verbose'		=> ($verbose or 0),
+		'raw'			=> ($raw or 0),
+		'file'			=> ($file or ($ENV{'HOME'}.'/.sendxmpprc')),
+		'recipient'		=> \@rcpt
+	);
 
    if ($DEBUG || $VERBOSE) {
        while (my ($key,$val) = each %dict) {
@@ -308,15 +311,14 @@ sub parse_cmdline () {
    }
 
    return \%dict;
-}
-
+} # }}}
 
 #
 # xmpp_login: login to the xmpp (jabber) server
 # input: hostname,port,username,password,resource,tls,ssl,debug
 # output: an XMPP connection object
 #
-sub xmpp_login ($$$$$$$$$$$$) {
+sub xmpp_login ($$$$$$$$$$$$) { # {{{
 
     my ($host, $port, $user, $pw, $comp, $res, $tls, $no_tls_verify, $tls_ca_path, $ssl, $debug, $sso) = @_;
     my $cnx = new Net::XMPP::Client(debuglevel=>$debug);
@@ -382,16 +384,13 @@ sub xmpp_login ($$$$$$$$$$$$) {
     xmpp_check_result('AuthSend',\@res,$cnx);
 
     return $cnx;
-}
-
-
-
+} # }}}
 
 #
 # xmmp_send: send the message, determine from cmdline
 # whether it's to individual or chatroom
 #
-sub xmpp_send ($$$$) {
+sub xmpp_send ($$$$) { # {{{
 
 	my ($cnx, $cmdline, $config, $txt) = @_;
 
@@ -419,29 +418,26 @@ sub xmpp_send ($$$$) {
 				$txt)
 		} @{$$cmdline{'recipient'}};
 	}
-}
-
-
+} # }}}
 
 #
 # xmpp_send_raw_xml: send a raw XML packet
 # input: connection,packet
 #
-sub xmpp_send_raw_xml ($$) {
+sub xmpp_send_raw_xml ($$) { # {{{
 
     my ($cnx,$packet) = @_;
 
     # for some reason, Send does not return anything
     $cnx->Send($packet);
     xmpp_check_result('Send',0,$cnx);
-}
-
+} # }}}
 
 #
 # xmpp_send_message: send a message to some xmpp user
 # input: connection,recipient,subject,msg
 #
-sub xmpp_send_message ($$$$$$) {
+sub xmpp_send_message ($$$$$$) { # {{{
 
     my ($cnx, $rcpt, $comp, $subject, $message_type, $msg) = @_;
 
@@ -453,14 +449,13 @@ sub xmpp_send_message ($$$$$$) {
 		'body'		=> $msg);
 
     xmpp_check_result('MessageSend',0,$cnx);
-}
-
+} # }}}
 
 #
 # xmpp_send_chatroom_message: send a message to a chatroom
 # input: connection,resource,subject,recipient,message
 #
-sub xmpp_send_chatroom_message ($$$$$) {
+sub xmpp_send_chatroom_message ($$$$$) { # {{{
 
     my ($cnx,$resource,$subject,$rcpt,$msg) =  @_;
 
@@ -481,14 +476,13 @@ sub xmpp_send_chatroom_message ($$$$$) {
 
     # leave the group
     $pres->SetPresence (Type=>'unavailable',To=>$rcpt);
-}
-
+} # }}}
 
 #
 # xmpp_logout: log out from the xmpp server
 # input: connection
 #
-sub xmpp_logout($) {
+sub xmpp_logout($) { # {{{
 
     # HACK
     # messages may not be received if we log out too quickly...
@@ -497,16 +491,13 @@ sub xmpp_logout($) {
     my $cnx = shift;
     $cnx->Disconnect();
     xmpp_check_result ('Disconnect',0); # well, nothing to check, really
-}
-
-
+} # }}}
 
 #
 # xmpp_check_result: check the return value from some xmpp function execution
 # input: text, result, [connection]
 #
-sub xmpp_check_result
-{
+sub xmpp_check_result { # {{{
     my ($txt, $res, $cnx)=@_;
 
     error_exit ("Error '$txt': result undefined")
@@ -525,35 +516,32 @@ sub xmpp_check_result
 		my $errmsg = $cnx->GetErrorCode() || '?';
 		error_exit ("Error '$txt': " . join (': ',@$res) . "[$errmsg]", $cnx);
 	}
-}
-
+} # }}}
 
 #
 # terminate; exit the program upon TERM sig reception
 #
-sub terminate () {
+sub terminate () { # {{{
     debug_print "caught TERM";
     xmpp_logout($main::CNX);
     exit 0;
-}
-
+} # }}}
 
 #
 # debug_print: print the data if defined and DEBUG || VERBOSE is TRUE
 # input: [array of strings]
 #
-sub debug_print {
+sub debug_print { # {{{
     print STDERR "sendxmpp: " . (join ' ', @_) . "\n"
 	if (@_ && ($DEBUG ||$VERBOSE));
-}
-
+} # }}}
 
 #
 # error_exit: print error message and exit the program
 #             logs out if there is a connection
 # input: error, [connection]
 #
-sub error_exit {
+sub error_exit { # {{{
 
     my ($err,$cnx) = @_;
     print STDERR "$err\n";
@@ -561,24 +549,22 @@ sub error_exit {
 	if ($cnx);
 
     exit 1;
-}
-
+} # }}}
 
 #
 # usage: print short usage message and exit
 #
-sub usage () {
+sub usage () { # {{{
 
     print STDERR
 	"sendxmpp version $VERSION\n" .
 	"Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema\n" .
-   	"Copyright (c) 2006 - 2007 Lubomir Host\n" .
+   	"Copyright (c) 2006 - 2014 Lubomir Host\n" .
 	"usage: sendxmpp [options] <recipient1> [<recipient2> ...]\n" .
 	"or refer to the the sendxmpp manpage\n";
 
     exit 0;
-}
-
+} # }}}
 
 #
 # the fine manual
@@ -753,3 +739,4 @@ the L<Net::XMPP> modules written by Ryan Eatmon. Current maintainer is
 Lubomir Host <lubomir.host@gmail.com>, L<http://blog.hostname.sk>
 
 =cut
+# vim: fdm=marker fdl=0 fdc=3
