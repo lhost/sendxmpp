@@ -21,6 +21,7 @@ use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module
 use Net::XMPP;
 use Net::Domain;
 use Getopt::Long;
+
 use strict;
 
 use open ':utf8';
@@ -267,7 +268,7 @@ sub parse_cmdline () { # {{{
 
 	if ($headline) {
 		# --headline withouth --message-type
-		if ($message_type eq 'message') {
+		if ($message_type eq 'message' or $message_type eq 'chat') {
 			$message_type = 'headline'
 		}
 		else {
