@@ -187,9 +187,6 @@ sub read_config_file ($) { # {{{
 		}
 	}
 
-	use Data::Dumper;
-	die Dumper(\%config);
-
     close CFG;
 
     error_exit ("no correct config found in $cfg_file")
