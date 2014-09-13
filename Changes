@@ -1,3 +1,6 @@
+2014-09-13:
+	- released version 1.24
+	- new config format supported - key: value
 2012-10-28:
 	- released version 1.23
 	- added options --no-tls-verify and --tls-ca-path, thanks to Alexander Weidinger <aw AT sz9i.net>

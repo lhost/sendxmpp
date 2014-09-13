@@ -44,7 +44,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= [ q$Revision: 1.23 $ =~ m/(\S+)\s*$/g ]->[0];
+$VERSION	= 1.24;
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
@@ -155,8 +155,11 @@ sub read_config_file ($) { # {{{
 
 		#s/\#.*$//; # ignore comments in lines
 
+		if (/^([a-z]+):\s*(.*)$/) {
+			$config{$1} = $2;
+		}
 		# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has account with '#' as username
-		if (/([\.\w_#-]+)@([-\.\w:;]+)\s+(\S+)\s*(\S+)?$/) {
+		elsif (/([\.\w_#-]+)@([-\.\w:;]+)\s+(\S+)\s*(\S+)?$/) {
 			%config = (
 				'username'	=> $1,
 				'jserver'	=> $2,
@@ -183,6 +186,9 @@ sub read_config_file ($) { # {{{
 			$config{'username'}	.= "\@$1" unless $config{'component'};
 		}
 	}
+
+	use Data::Dumper;
+	die Dumper(\%config);
 
     close CFG;
 
@@ -680,7 +686,23 @@ Show debugging info while running. B<WARNING>: This will include passwords etc. 
 =head1 CONFIGURATION FILE
 
 You may define a 'F<~/.sendxmpprc>' file with the necessary data for your
-xmpp-account, with a line of the format:
+xmpp-account. Since version 1.24 the following format is supported:
+
+    username: I<your_username>
+    jserver: I<jabber_server>
+    port: I<jabber_port>
+    password: I<your_jabber_password>
+    component: I<optional_component_name>
+
+
+Example for Google Talk servers:
+
+    username: I<lubomir.host>
+    jserver: I<talk.google.com>
+    password: I<my-secure-password>
+    component: I<gmail.com>
+
+With version 1.23 and older only one-line format is supported:
 
 =over
 

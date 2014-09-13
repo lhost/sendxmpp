@@ -1,5 +1,5 @@
 name:         sendxmpp
-version:      1.23
+version:      1.24
 version_from: sendxmpp
 installdirs:  site
 requires:
