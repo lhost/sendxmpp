@@ -1,0 +1,174 @@
+#!/usr/bin/perl -w
+
+eval 'exec /usr/bin/perl -w -S $0 ${1+"$@"}'
+if 0; # not running under some shell
+
+#
+# sendxmpp2
+#
+# Developed by Lubomir Host <lubomir.host@gmail.com>
+# Copyright (c) 2014 
+#
+# Homepage: http://sendxmpp.hostname.sk
+#
+# Released under the terms of the GNU General Public License v2
+#
+# Changelog:
+# 2014-10-13 - created
+#
+
+use strict;
+use warnings;
+use utf8;
+
+use Env;
+use AnyEvent;
+use AnyEvent::XMPP;
+use AnyEvent::XMPP::Client;
+#use Getopt::Long;
+use Config::YAML;
+use URI::Escape;
+
+use Data::Dumper;
+$Data::Dumper::Indent = 1;
+
+$ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+
+use vars qw(
+	$VERSION $DEBUG
+	$connected
+);
+
+$DEBUG = 1;
+$| = 1;
+binmode STDOUT, ":utf8";
+
+if (scalar(@ARGV) < 1) {
+	print STDERR "Usage: $0 user1\@jabber.org user2\@your.server.sk\n";
+	exit 1;
+}
+
+my $config = Config::YAML->new(
+	config	=>"$ENV{HOME}/.sendxmpprc",
+);
+
+my $j	= AnyEvent->condvar;
+my $cl	= AnyEvent::XMPP::Client->new (
+	debug	=> ($DEBUG > 1 ? 1 : 0),
+	tls_ctx	=> { verify => 0, }, # XXX: temporarily
+);
+my $cv	= AnyEvent->condvar;
+
+$cl->add_account ("$config->{username}\@$config->{jserver}", $config->{password});
+AE::log info => "connecting to '$config->{username}\@$config->{jserver}' ...\n" if ($DEBUG);
+
+
+#
+# Handle XMPP - Jabber {{{
+#
+$cl->reg_cb (
+	session_ready => sub {
+		my ($cl, $acc) = @_;
+		AE::log info => " connected";# if ($DEBUG);
+		$connected = 1;
+	},
+	message => sub { # {{{
+		my ($cl, $acc, $msg) = @_;
+		# clean garbage on the of message. This solves Pidgin bug with adding
+		# "%20%09%20%20%09%09%09%09%20%09%20%09%20%09%20%20%20%20%09%09%20%20%09%20%20%20%09%09%20%20%09%09" to the end of message
+		my $xmsg = $msg->any_body || '';
+		$xmsg =~ s/[ \t]+$//g;
+
+		print join("\t", $msg->type, $msg->from, $msg->to,  URI::Escape::uri_escape($xmsg)), "\n";
+	}, # }}}
+	contact_request_subscribe => sub {
+		my ($cl, $acc, $roster, $contact) = @_;
+		$contact->send_subscribed;
+		warn "Subscribed to " . $contact->jid . "\n";
+	},
+	error => sub {
+		my ($cl, $acc, $error) = @_;
+		if ($error) {
+			AE::log error => "Error encountered for " . $acc->jid . ": " . $error;
+		}
+		$j->broadcast;
+	},
+	connect_error => sub {
+		my ($cl, $acc, $error) = @_;
+		if ($error) {
+			AE::log error => "Error connecting as " . $acc->jid . ": " . $error;
+		}
+		$j->broadcast;
+	},
+	disconnect => sub {
+		$j->broadcast;
+	},
+); # }}}
+
+#
+# Start Jabber
+#
+$cl->start;
+AE::log info => 'After start';
+
+
+my $hdl;
+my $w;
+$w = AnyEvent->timer (
+	interval => 1,
+	cb => sub {
+		AE::log debug => "Waiting for connection ...";# if ($DEBUG);
+		
+		return unless ($connected); # stop timer if connected
+
+		undef $w;
+		#
+		# Handle *STDIN {{{
+		#
+		$hdl = AnyEvent->io(
+			fh => \*STDIN,
+			poll	=> 'r',
+			cb	=> sub {
+				#warn "io event <$_[0]>\n";   # will always output <r>
+				my $line = <STDIN>;
+				if ( defined($line) ) {
+					chomp $line;
+					#warn "got line <$line>\n";
+					foreach my $dst_jid (@ARGV) {
+						$cl->send_message($line, $dst_jid, $config->{jid}, 'chat');
+					}
+					$cv->send;
+				}
+				else {
+					$cl->disconnect();
+				}
+				#$hdl->push_read(line => $send_msg);
+			},
+			on_error => sub {
+				my ($hdl, $fatal, $msg) = @_;
+				AE::log error => $msg;
+				$hdl->destroy;
+				#@$cv->send;
+			},
+			on_eof	=> sub {
+				my ($hdl, $fatal, $msg) = @_;
+				AE::log info => 'Disconnecting from jabber';
+				$cl->disconnect();
+				$hdl->destroy;
+			},
+		); # }}}
+
+	}
+);
+
+
+$j->wait;
+AE::log info => 'After wait';
+
+$cv->recv;
+AE::log info => 'After recv';
+
+
+# vim: ts=4
+# vim600: fdm=marker fdl=0 fdc=3
+
