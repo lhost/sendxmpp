@@ -1,6 +1,13 @@
 INSTALL
 -------
 
+Installation of required packages
+----------------------------------
+
+On Debian:
+
+    sudo apt-get install libconfig-yaml-perl libnet-xmpp-perl libanyevent-xmpp-perl
+
 Installation from Git repository:
 ---------------------------------
 
