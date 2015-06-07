@@ -155,7 +155,7 @@ sub read_config_file ($) { # {{{
 
 		#s/\#.*$//; # ignore comments in lines
 
-		if (/^([a-z]+):\s*(.*)$/) {
+		if (/^([a-z-]+):\s*(.*)$/) {
 			$config{$1} = $2;
 		}
 		# Hugo van der Kooij <hvdkooij AT vanderkooij.org> has account with '#' as username
