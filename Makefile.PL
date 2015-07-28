@@ -13,7 +13,7 @@ WriteMakefile (
 	ABSTRACT => 'Script for sending XMPP messages (Jabber client)',
 	PREREQ_PM => {
 		'Getopt::Long'		=> 2.00,
-		'Net::XMPP'			=> 1.0
+		'Net::XMPP'			=> 1.0,
 		'AnyEvent::XMPP'	=> 0.55,
 	},
 	VERSION_FROM => 'sendxmpp',
