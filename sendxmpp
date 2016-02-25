@@ -22,6 +22,8 @@ use Net::XMPP;
 use Net::Domain;
 use Getopt::Long;
 
+use Net::INET6Glue::INET_is_INET6;
+
 use strict;
 
 use open ':utf8';
@@ -44,7 +46,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= 1.24;
+$VERSION	= 1.24.1;
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
