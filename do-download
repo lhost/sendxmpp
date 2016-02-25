@@ -1,0 +1,7 @@
+#!/bin/bash -e
+echo "This will download all of the project (direct dependencies)"
+echo "The downloads ALL ARE cryptographically secure :)" # <--- verify if this is true if you change anyghint
+# git submodules are secure (checksum of the source git version)
+
+git submodule init
+git submodule update

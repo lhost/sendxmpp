@@ -1,0 +1,4 @@
+[submodule "deps/p5-net-inet6glue"]
+	path = deps/p5-net-inet6glue
+	url = ../p5-net-inet6glue
+	# url = https://github.com/tigusoft-vm/p5-net-inet6glue
