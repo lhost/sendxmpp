@@ -2,6 +2,7 @@
 
 echo "This will install the program executable(s), in the current user"
 
+pwd="$PWD"
 
 echo "Telling cpanm to install into local user without warning"
 cpanm --local-lib=~/perl5 local::lib && eval $(perl -I ~/perl5/lib/perl5/ -Mlocal::lib)
@@ -10,6 +11,8 @@ echo "Installing cpan module from a file"
 cd deps/p5-net-inet6glue/
 #lib/Net/INET6Glue
 cpanm .
+
+cd "$pwd"
 
 mkdir -p ~/.local/bin/
 cp sendxmpp ~/.local/bin/
