@@ -46,7 +46,7 @@ sub terminate();
 sub main();
 
 my # MakeMaker
-$VERSION	= 1.24.1;
+$VERSION	= "1.24a";
 my $RESOURCE = 'sendxmpp';
 my $VERBOSE  = 0;
 my $DEBUG    = 0;
