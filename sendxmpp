@@ -459,6 +459,8 @@ sub xmpp_send_message ($$$$$$) { # {{{
 		'body'		=> $msg);
 
     xmpp_check_result('MessageSend', 0, $cnx);
+
+	debug_print("Recipient: '$rcpt'");
 } # }}}
 
 #
