@@ -209,6 +209,7 @@ sub read_config_file ($) { # {{{
 
 	  if ($DEBUG || $VERBOSE) {
 		  while (my ($key, $val) = each %config) {
+			  $val ||= "";
 			  debug_print ("config: '$key' => '$val'");
 		  }
 	  }
