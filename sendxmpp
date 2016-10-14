@@ -203,6 +203,19 @@ sub read_config_file ($) { # {{{
     return \%config;
 } # }}}
 
+sub mysql_date {
+	my ($inc_time,$epoch) = @_;
+
+	$epoch ||= time();
+	my @date = localtime($epoch);
+
+	my $ret = sprintf("%04d-%02d-%02d", $date[5] + 1900, $date[4] + 1, $date[3]);
+	if ($inc_time) { $ret .= sprintf(" %02d:%02d:%02d", $date[2], $date[1], $date[0]); }
+
+	return $ret;
+}
+
+
 #
 # parse_cmdline: parse commandline options
 # output: hash with commandline options
@@ -543,7 +556,9 @@ sub terminate () { # {{{
 # input: [array of strings]
 #
 sub debug_print { # {{{
-    print STDERR "sendxmpp: " . (join ' ', @_) . "\n"
+	my $date_str = mysql_date(1);
+
+	print STDERR "$date_str = sendxmpp: " . (join ' ', @_) . "\n"
 	if (@_ && ($DEBUG ||$VERBOSE));
 } # }}}
 
