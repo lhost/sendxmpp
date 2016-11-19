@@ -70,6 +70,17 @@ sub main () { # {{{
     my $config = read_config_file ($$cmdline{'file'})
 	unless ($$cmdline{'sso'} || ($$cmdline{'username'} && $$cmdline{'password'}));
 
+	my $ca_bundle_file = '';
+	foreach my $caf (qw(
+		/etc/pki/tls/certs/ca-bundle.crt
+		/etc/ssl/certs/ca-certificates.crt
+		)) {
+		if (-f $caf) {
+			$ca_bundle_file = $caf;
+			last;
+		}
+	}
+
     # login to xmpp
     my $cnx =  xmpp_login (
 		$$cmdline{'jserver'}  || $$config{'jserver'},
@@ -80,7 +91,7 @@ sub main () { # {{{
 		$$cmdline{'resource'},
 		$$cmdline{'tls'} || $$config{'tls'} || 1,
 		$$cmdline{'no-tls-verify'} || $$config{'no-tls-verify'},
-		$$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || '/etc/pki/tls/certs/ca-bundle.crt',
+		$$cmdline{'tls-ca-path'} || $$config{'tls-ca-path'} || $ca_bundle_file || '',
 		$$cmdline{'ssl'},
 		$$cmdline{'http'} || $$config{'http'} || 0,
 		$$cmdline{'debug'},
@@ -646,7 +657,11 @@ Deactivate the verification of SSL certificates. Better way is to use parameter 
 
 =item B<-a>, B<--tls-ca-path>
 
-Path to your custom CA certificates, so you can verificate SSL certificates during connecting.
+Path to your custom CA certificates, so you can verificate SSL certificates during connecting. If no --tls-ca-path specified, the following files are tried:
+
+    /etc/pki/tls/certs/ca-bundle.crt
+    /etc/ssl/certs/ca-certificates.crt
+
 
 =item B<--http>
 
