@@ -305,7 +305,7 @@ sub parse_cmdline () { # {{{
 	}
 
 	my %dict = (
-		'subject'		=> ($subject  or ''),
+		'subject'		=> $subject,
 		'message'		=> ($message or ''),
 		'resource'		=> ($resource or $RESOURCE),
 		'jserver'		=> ($jserver or ''),
@@ -478,7 +478,7 @@ sub xmpp_send_message ($$$$$$) { # {{{
 	# mimeit01@xmpp.hs-esslingen.de: if $comp IS set, AND the rcpt DOESN'T contain an @, then @comp is added
     $cnx->MessageSend('to'      => $rcpt . ( ($comp && index($rcpt, "@") == -1) ? "\@$comp" : '' ),
 		'type'		=> $message_type,
-		'subject'	=> $subject,
+		('subject'	=> $subject) x !!defined($subject), # only if defined
 		'body'		=> $msg);
 
     xmpp_check_result('MessageSend', 0, $cnx);
@@ -689,7 +689,7 @@ Send the message to a chatroom
 
 =item B<-s>, B<--subject> I<subject>
 
-Set the subject for the message to I<subject> [default: '']; when sending to a chatroom, this will set the subject for the chatroom
+Set the subject for the message to I<subject>. If not defined, subject is not sent.
 
 =item B<-m>, B<--message> I<message>
 
