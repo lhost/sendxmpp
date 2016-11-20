@@ -35,7 +35,7 @@ sub xmpp_login($$$$$$$$$$$$$);
 sub xmpp_send ($$$$);
 sub xmpp_send_raw_xml($$);
 sub xmpp_send_message($$$$$$);
-sub xmpp_send_chatroom_message($$$$$);
+sub xmpp_send_chatroom_message($$$$);
 sub xmpp_logout($);
 sub xmpp_check_result;
 sub parse_cmdline();
@@ -425,12 +425,15 @@ sub xmpp_send ($$$$) { # {{{
 	unless ($$cmdline{'chatroom'}) {
     	unless ($$cmdline{'raw'}) {
 			map {
-				xmpp_send_message ($cnx,
-					$_, #$$cmdline{'recipient'},
+				my $recipient = $_;
+
+				xmpp_send_message($cnx,
+					$recipient,
 					$$cmdline{'component'} || $$config{'component'},
 					$$cmdline{'subject'},
 					$$cmdline{'message-type'},
-					$txt)
+					$txt
+				);
 			} @{$$cmdline{'recipient'}};
     	}
 		else {
@@ -439,11 +442,13 @@ sub xmpp_send ($$$$) { # {{{
 	}
 	else {
 		map {
-			xmpp_send_chatroom_message ($cnx,
+			my $recipient = $_;
+
+			xmpp_send_chatroom_message($cnx,
 				$$cmdline{'resource'},
-				$$cmdline{'subject'},
-				$_, # $$cmdline{'recipient'},
-				$txt)
+				$recipient,
+				$txt
+			);
 		} @{$$cmdline{'recipient'}};
 	}
 } # }}}
@@ -481,11 +486,11 @@ sub xmpp_send_message ($$$$$$) { # {{{
 
 #
 # xmpp_send_chatroom_message: send a message to a chatroom
-# input: connection, resource, subject, recipient, message
+# input: connection, resource, recipient, message
 #
-sub xmpp_send_chatroom_message ($$$$$) { # {{{
+sub xmpp_send_chatroom_message ($$$$) { # {{{
 
-    my ($cnx, $resource, $subject, $rcpt, $msg) =  @_;
+    my ($cnx, $resource, $rcpt, $msg) =  @_;
 
     # set the presence
     my $pres = new Net::XMPP::Presence;
