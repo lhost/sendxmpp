@@ -10,7 +10,7 @@ if 0; # not running under some shell
 # Author:     Dirk-Jan C. Binnema <djcb AT djcbsoftware.nl>
 # Maintainer: Lubomir Host <lubomir.host@gmail.com>
 # Copyright (c) 2004 - 2005 Dirk-Jan C. Binnema
-# Copyright (c) 2006 - 2014 Lubomir Host
+# Copyright (c) 2006 - 2016 Lubomir Host
 #
 # Homepage: http://sendxmpp.hostname.sk
 #

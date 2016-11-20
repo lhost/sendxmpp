@@ -20,7 +20,26 @@ sent.
 
 I am interested in hearing about other uses.
 
-Homepage: http://sendxmpp.hostname.sk
+Installation
+------------
+
+# Debian
+
+```bash
+apt-get install libnet-inet6glue-perl libnet-xmpp-perl
+apt-get install sendxmpp
+```
+
+# git
+```bash
+git clone https://github.com/lhost/sendxmpp
+cd sendxmpp
+perl Makefile.PL PREFIX=$HOME/install
+make install
+```
+
+* Homepage: http://sendxmpp.hostname.sk
+* GitHub: https://github.com/lhost/sendxmpp
 
 Lubomir Host <lubomir.host@gmail.com>
 
