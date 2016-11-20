@@ -25,6 +25,7 @@ use Getopt::Long;
 use Net::INET6Glue::INET_is_INET6;
 
 use strict;
+use warnings;
 
 use open ':utf8';
 use open ':std';
