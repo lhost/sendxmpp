@@ -472,8 +472,7 @@ sub xmpp_send_chatroom_message ($$$$$) { # {{{
     # set the presence
     my $pres = new Net::XMPP::Presence;
     my $res = $pres->SetTo("$rcpt/$resource");
-
-    $cnx->Send($pres);
+    xmpp_send_raw_xml($cnx, "<presence to='$rcpt/$resource'><x xmlns='http://jabber.org/protocol/muc'/></presence>");
 
     # create/send the message
     my $groupmsg = new Net::XMPP::Message;
