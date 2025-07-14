@@ -470,8 +470,6 @@ sub xmpp_send_chatroom_message ($$$$$) { # {{{
     my ($cnx, $resource, $subject, $rcpt, $msg) =  @_;
 
     # set the presence
-    my $pres = new Net::XMPP::Presence;
-    my $res = $pres->SetTo("$rcpt/$resource");
     xmpp_send_raw_xml($cnx, "<presence to='$rcpt/$resource'><x xmlns='http://jabber.org/protocol/muc'/></presence>");
 
     # create/send the message
@@ -480,10 +478,11 @@ sub xmpp_send_chatroom_message ($$$$$) { # {{{
 			  body    => $msg,
 			  type    => 'groupchat');
 
-    $res = $cnx->Send($groupmsg);
+    my $res = $cnx->Send($groupmsg);
     xmpp_check_result ('Send', $res, $cnx);
 
     # leave the group
+    my $pres = new Net::XMPP::Presence;
     $pres->SetPresence (Type=>'unavailable', To=>$rcpt);
 } # }}}
 
