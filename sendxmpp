@@ -21,6 +21,7 @@ use Authen::SASL qw(Perl); # authentication broken if Authen::SASL::Cyrus module
 use Net::XMPP;
 use Net::Domain;
 use Getopt::Long;
+use POSIX qw( strftime );
 
 use strict;
 
@@ -543,8 +544,10 @@ sub terminate () { # {{{
 # input: [array of strings]
 #
 sub debug_print { # {{{
-    print STDERR "sendxmpp: " . (join ' ', @_) . "\n"
-	if (@_ && ($DEBUG ||$VERBOSE));
+	if (@_ && ($DEBUG ||$VERBOSE)) {
+		my $date_str = strftime("%Y-%m-%d %H:%M:%S", localtime);
+		print STDERR "$date_str sendxmpp: " . (join ' ', @_) . "\n"
+	}
 } # }}}
 
 #
