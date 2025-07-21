@@ -3,7 +3,7 @@ README
 
 sendxmpp is a perl-script to send XMPP (jabber) messages, similar to
 what mail(1) does for mail. XMPP is an open, non-proprietary protocol
-for instant messaging. See www.jabber.org for more information.
+for instant messaging. See https://xmpp.org/ for more information.
 
 sendxmpp was written by me, Dirk-Jan C. Binnema, and is available under
 the term of the GNU General Public License v2. The hard work is done by
