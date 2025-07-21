@@ -11,14 +11,7 @@ Ryan Eatmon's Net::XMPP-modules, and you need have them installed for
 sendxmpp to work. Current maintainer is Lubomir Host <lubomir.host@gmail.com>
 
 Obviously, you also need a jabber account; they are freely available
-at jabber.org, but you can also install your own servers.
-
-sendxmpp is already in use for monitoring remote servers (servers can
-warn by sending xmpp-messages), and watching CVS commit messages
-(developers are all connected to a XMPP-chatroom to which messages are
-sent. 
-
-I am interested in hearing about other uses.
+at https://list.jabber.at/, but you can also install your own servers.
 
 Homepage: http://sendxmpp.hostname.sk
 
